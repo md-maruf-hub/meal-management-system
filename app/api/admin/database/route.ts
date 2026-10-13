@@ -116,13 +116,17 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // Save to .env.local
-    const envPath = path.join(process.cwd(), '.env.local');
-    const envContent = `GAS_API_URL=${gasUrl.trim()}
+    // Save to .env.local if filesystem is writable
+    try {
+      const envPath = path.join(process.cwd(), '.env.local');
+      const envContent = `GAS_API_URL=${gasUrl.trim()}
 GAS_API_KEY=${apiKey}
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_APP_URL=${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}
 `;
-    fs.writeFileSync(envPath, envContent, 'utf8');
+      fs.writeFileSync(envPath, envContent, 'utf8');
+    } catch (e) {
+      // In serverless environments like Vercel, filesystem is read-only
+    }
 
     // Also update local database and trigger sync
     const db = await getDatabase();

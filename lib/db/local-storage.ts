@@ -2,7 +2,9 @@ import fs from 'fs';
 import path from 'path';
 import { Member, MealEntry, BazarEntry, ExpenseItem, Deposit, MonthLock, SettlementEntry, SecurityToken, AuditLog, MealRequest, DailyMealLock } from '../types';
 
-const DB_FILE = path.join(process.cwd(), 'database.json');
+const DB_FILE = process.env.VERCEL
+  ? path.join('/tmp', 'database.json')
+  : path.join(process.cwd(), 'database.json');
 
 export interface DatabaseSchema {
   members: Member[];
