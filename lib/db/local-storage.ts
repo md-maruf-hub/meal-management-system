@@ -21,6 +21,7 @@ export interface DatabaseSchema {
   config?: {
     gasUrl?: string;
     gasApiKey?: string;
+    masterPin?: string;
   };
 }
 

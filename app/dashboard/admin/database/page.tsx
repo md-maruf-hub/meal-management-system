@@ -1,9 +1,17 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Database, CheckCircle, AlertCircle, RefreshCw, Send, ShieldCheck, Link2, Trash2 } from 'lucide-react';
+import { Database, CheckCircle, AlertCircle, RefreshCw, Send, ShieldCheck, Link2, Lock, Unlock, Eye, EyeOff, KeyRound } from 'lucide-react';
 
 export default function AdminDatabasePage() {
+  // Master Security PIN / Password State
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [showPin, setShowPin] = useState(false);
+  const [unlocking, setUnlocking] = useState(false);
+  const [pinError, setPinError] = useState('');
+
+  // Database Connection State
   const [gasUrl, setGasUrl] = useState('');
   const [loading, setLoading] = useState(true);
   const [testing, setTesting] = useState(false);
@@ -12,9 +20,15 @@ export default function AdminDatabasePage() {
   const [pingResult, setPingResult] = useState<{ success: boolean; duration: number } | null>(null);
   const [pulling, setPulling] = useState(false);
   const [pushing, setPushing] = useState(false);
-  const [wiping, setWiping] = useState(false);
 
   useEffect(() => {
+    // Check if session was previously unlocked in this browser tab
+    if (typeof window !== 'undefined') {
+      const unlockedSession = sessionStorage.getItem('admin_db_unlocked') === 'true';
+      if (unlockedSession) {
+        setIsUnlocked(true);
+      }
+    }
     fetchConfig();
   }, []);
 
@@ -30,6 +44,42 @@ export default function AdminDatabasePage() {
     } catch (err) {
       setLoading(false);
     }
+  };
+
+  const handleUnlock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pinInput.trim()) return;
+
+    setUnlocking(true);
+    setPinError('');
+
+    try {
+      const res = await fetch('/api/admin/database', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'verify-pin', pin: pinInput.trim() }),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setIsUnlocked(true);
+        sessionStorage.setItem('admin_db_unlocked', 'true');
+        setPinInput('');
+      } else {
+        setPinError(data.error || 'ভুল সিকিউরিটি পিন বা পাসওয়ার্ড।');
+      }
+    } catch (err: any) {
+      setPinError('সার্ভারের সাথে যোগাযোগ করা যায়নি।');
+    } finally {
+      setUnlocking(false);
+    }
+  };
+
+  const handleLockAgain = () => {
+    setIsUnlocked(false);
+    sessionStorage.removeItem('admin_db_unlocked');
+    setPinInput('');
+    setStatusMessage(null);
   };
 
   const handleTestConnection = async () => {
@@ -143,29 +193,86 @@ export default function AdminDatabasePage() {
     }
   };
 
-  const handleWipeDatabase = async () => {
-    if (!confirm('⚠️ সতর্কতা: আপনি কি নিশ্চিত যে সমস্ত টেস্ট ডাটা মুছে ডাটাবেজ সম্পূর্ণ ফ্রেশ/ক্লিন করতে চান?\n\nএতে শুধুমাত্র সুপার অ্যাডমিন অ্যাকাউন্ট বহাল থাকবে এবং বাকি সব মিল, বাজার, জমা, মেম্বার ও পুরনো মাসের শিট মুছে যাবে।')) return;
-    setWiping(true);
-    setStatusMessage(null);
-    try {
-      const res = await fetch('/api/admin/database', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'wipe' }),
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setStatusMessage({ type: 'success', text: data.message || 'ডাটাবেজ এবং গুগল শিট সম্পূর্ণ ফ্রেশ করা হয়েছে।' });
-      } else {
-        setStatusMessage({ type: 'error', text: data.error || 'ডাটাবেজ ফ্রেশ করতে সমস্যা হয়েছে।' });
-      }
-    } catch (err: any) {
-      setStatusMessage({ type: 'error', text: err.message || 'ডাটাবেজ ফ্রেশ করার অনুরোধ ব্যর্থ হয়েছে।' });
-    } finally {
-      setWiping(false);
-    }
-  };
+  // If locked, render the Master Security PIN Protection Screen (Option 2)
+  if (!isUnlocked) {
+    return (
+      <div className="max-w-md mx-auto py-12 px-4">
+        <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl space-y-6 text-center">
+          <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-3xl flex items-center justify-center mx-auto border border-amber-200 shadow-sm">
+            <Lock className="w-8 h-8" />
+          </div>
 
+          <div className="space-y-2">
+            <h2 className="text-xl font-extrabold text-slate-800">
+              🔒 ডাটাবেজ সেকশন সুরক্ষিত
+            </h2>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              মেসের মাস্টার ডাটাবেজ ও গুগল শিট সংযোগের সুরক্ষার্থে এই সেকশনটি লক করা রয়েছে। প্রবেশের জন্য আপনার অ্যাডমিন পাসওয়ার্ড বা মাস্টার পিন দিন।
+            </p>
+          </div>
+
+          {pinError && (
+            <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-bold rounded-xl flex items-center justify-center space-x-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{pinError}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleUnlock} className="space-y-4 text-left">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                মাস্টার সিকিউরিটি পিন / সুপার অ্যাডমিন পাসওয়ার্ড
+              </label>
+              <div className="relative">
+                <input
+                  type={showPin ? 'text' : 'password'}
+                  required
+                  value={pinInput}
+                  onChange={(e) => setPinInput(e.target.value)}
+                  placeholder="পিন বা পাসওয়ার্ড লিখুন..."
+                  className="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm font-mono text-slate-900 focus:outline-none focus:border-amber-500 focus:bg-white transition-all"
+                />
+                <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                <button
+                  type="button"
+                  onClick={() => setShowPin(!showPin)}
+                  className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600"
+                >
+                  {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={unlocking || !pinInput.trim()}
+              className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-sm rounded-xl shadow-md transition-all flex items-center justify-center space-x-2 disabled:opacity-50"
+            >
+              {unlocking ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>যাচাই হচ্ছে...</span>
+                </>
+              ) : (
+                <>
+                  <Unlock className="w-4 h-4" />
+                  <span>🔓 আনলক করে প্রবেশ করুন</span>
+                </>
+              )}
+            </button>
+          </form>
+
+          <div className="pt-2 border-t border-slate-100">
+            <p className="text-[11px] text-slate-400">
+              💡 তথ্য: আপনি আপনার সুপার অ্যাডমিন পাসওয়ার্ড অথবা ডিফল্ট মাস্টার পিন <span className="font-bold text-slate-600 font-mono">2026</span> ব্যবহার করতে পারেন।
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Unlocked State: Streamlined, must-have options only (No destructive wipe button)
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header */}
@@ -175,16 +282,27 @@ export default function AdminDatabasePage() {
             <Database className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
           <div>
-            <h2 className="text-lg sm:text-xl font-bold text-slate-800">ডাটাবেজ কানেকশন ও গুগল শিট সিঙ্ক</h2>
-            <p className="text-xs text-slate-500">
-              সিস্টেমের গুগল অ্যাপস স্ক্রিপ্ট (Google Apps Script) ওয়েব অ্যাপ ডাটাবেজ ব্যাকএন্ড কনফিগার ও সিঙ্ক্রোনাইজ করুন।
+            <div className="flex items-center space-x-2">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-800">ডাটাবেজ কানেকশন ও গুগল শিট সিঙ্ক</h2>
+              <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                🔓 আনলকড
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              গুগল অ্যাপস স্ক্রিপ্ট (Google Apps Script) লাইভ ডাটাবেজ সংযোগ ও তথ্য সিঙ্ক্রোনাইজেশন।
             </p>
           </div>
         </div>
 
-        <div className="flex items-center space-x-2 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl text-xs font-bold text-emerald-800 self-start sm:self-auto">
-          <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-          <span>সুপার অ্যাডমিন অ্যাক্সেস</span>
+        <div className="flex items-center space-x-2">
+          <button
+            type="button"
+            onClick={handleLockAgain}
+            className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl flex items-center space-x-1.5 transition-all border border-slate-200"
+          >
+            <Lock className="w-3.5 h-3.5 text-slate-500" />
+            <span>লক করুন (Lock)</span>
+          </button>
         </div>
       </div>
 
@@ -205,20 +323,17 @@ export default function AdminDatabasePage() {
         </div>
       )}
 
-      {/* Main Configuration Card */}
-      <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+      {/* 1. Essential Option: Google Sheets Connection & URL */}
+      <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
         <div>
           <h3 className="text-base font-bold text-slate-800">গুগল অ্যাপস স্ক্রিপ্ট ওয়েব অ্যাপ ইউআরএল (Web App URL)</h3>
-          <p className="text-xs text-slate-500 mt-1">
-            এই এন্ডপয়েন্টটি ওয়েব অ্যাপ্লিকেশনকে আপনার গুগল স্প্রেডশিটের সাথে লাইভ ডাটাবেজ হিসেবে সংযুক্ত রাখে।
+          <p className="text-xs text-slate-500 mt-0.5">
+            এই এন্ডপয়েন্টটি অ্যাপ্লিকেশনকে আপনার গুগল স্প্রেডশিটের সাথে লাইভ ডাটাবেজ হিসেবে সংযুক্ত রাখে।
           </p>
         </div>
 
         <form onSubmit={handleSaveAndSync} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              ডেপ্লয়মেন্ট এক্সিকিউটেবল ইউআরএল (Deployment URL) *
-            </label>
             <div className="relative">
               <input
                 type="url"
@@ -230,17 +345,14 @@ export default function AdminDatabasePage() {
               />
               <Link2 className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
             </div>
-            <p className="text-[11px] text-slate-500 mt-1.5">
-              নিশ্চিত করুন যে Google Apps Script এ Deploy করার সময় Who has access: <span className="font-semibold text-slate-700">"Anyone"</span> নির্ধারণ করা আছে।
-            </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 pt-2">
+          <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
               onClick={handleTestConnection}
               disabled={testing || saving || !gasUrl}
-              className="px-4 sm:px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl flex items-center space-x-2 transition-all disabled:opacity-50"
+              className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl flex items-center space-x-2 transition-all disabled:opacity-50"
             >
               <RefreshCw className={`w-4 h-4 ${testing ? 'animate-spin text-emerald-600' : ''}`} />
               <span>{testing ? 'সংযোগ পরীক্ষা করা হচ্ছে...' : '🔍 লাইভ সংযোগ টেস্ট করুন'}</span>
@@ -249,21 +361,21 @@ export default function AdminDatabasePage() {
             <button
               type="submit"
               disabled={saving || testing || !gasUrl}
-              className="px-5 sm:px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl flex items-center space-x-2 shadow-md hover:shadow-emerald-600/30 transition-all disabled:opacity-50"
+              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl flex items-center space-x-2 shadow-md transition-all disabled:opacity-50"
             >
               <Send className="w-4 h-4" />
-              <span>{saving ? 'সংরক্ষণ ও সিঙ্ক হচ্ছে...' : '💾 সংরক্ষণ ও ডাটাবেজ সংযোগ করুন'}</span>
+              <span>{saving ? 'সংরক্ষণ হচ্ছে...' : '💾 সংরক্ষণ ও সংযোগ নিশ্চিত করুন'}</span>
             </button>
           </div>
         </form>
       </div>
 
-      {/* Live Data Operations Card */}
+      {/* 2. Essential Option: Pull and Push Synchronization */}
       <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
         <div>
-          <h3 className="text-base font-bold text-slate-800">সরাসরি গুগল শিট সিঙ্ক্রোনাইজেশন</h3>
-          <p className="text-xs text-slate-500 mt-1">
-            গুগল শিট হচ্ছে এই সিস্টেমের মূল মাস্টার ডাটাবেজ। আপনি যেকোনো সময় শিট থেকে নতুন ডাটা রিফ্রেশ (Pull) করতে পারেন বা বর্তমান ডাটা শিটে পাঠাতে (Push) পারেন।
+          <h3 className="text-base font-bold text-slate-800">মাস্টার ডাটাবেজ সিঙ্ক্রোনাইজেশন (Pull & Push)</h3>
+          <p className="text-xs text-slate-500 mt-0.5">
+            গুগল শিট থেকে নতুন ডাটা রিফ্রেশ করতে অথবা বর্তমান সমস্ত তথ্য গুগল শিটে হালনাগাদ করতে নিচের বাটনগুলো ব্যবহার করুন।
           </p>
         </div>
 
@@ -272,7 +384,7 @@ export default function AdminDatabasePage() {
             type="button"
             onClick={handlePullFromSheets}
             disabled={pulling || pushing || !gasUrl}
-            className="px-4 sm:px-5 py-2.5 sm:py-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs rounded-xl flex items-center space-x-2 border border-emerald-300 transition-all shadow-sm disabled:opacity-50"
+            className="px-4 sm:px-5 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs rounded-xl flex items-center space-x-2 border border-emerald-300 transition-all shadow-sm disabled:opacity-50"
           >
             <RefreshCw className={`w-4 h-4 ${pulling ? 'animate-spin text-emerald-600' : 'text-emerald-700'}`} />
             <span>{pulling ? 'ডাটা আনা হচ্ছে...' : '🔄 গুগল শিট থেকে ডাটা আনুন (Pull Live Data)'}</span>
@@ -282,7 +394,7 @@ export default function AdminDatabasePage() {
             type="button"
             onClick={handlePushToSheets}
             disabled={pulling || pushing || !gasUrl}
-            className="px-4 sm:px-5 py-2.5 sm:py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl flex items-center space-x-2 transition-all shadow-sm disabled:opacity-50"
+            className="px-4 sm:px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl flex items-center space-x-2 transition-all shadow-sm disabled:opacity-50"
           >
             <Send className={`w-4 h-4 ${pushing ? 'animate-pulse text-emerald-400' : ''}`} />
             <span>{pushing ? 'ডাটা পাঠানো হচ্ছে...' : '⬆️ সম্পূর্ণ ডাটাবেজ শিটে পাঠান (Push to Sheet)'}</span>
@@ -290,41 +402,12 @@ export default function AdminDatabasePage() {
         </div>
       </div>
 
-      {/* Fresh / Reset Database Card */}
-      <div className="bg-red-50/50 p-5 sm:p-6 rounded-2xl border border-red-200 shadow-sm space-y-4">
-        <div>
-          <div className="flex items-center space-x-2 text-red-700 font-bold text-base">
-            <Trash2 className="w-5 h-5 flex-shrink-0" />
-            <span>সিস্টেম ও ডাটাবেজ সম্পূর্ণ ফ্রেশ / রিসেট করুন (Clean & Reset)</span>
-          </div>
-          <p className="text-xs text-slate-600 mt-1">
-            টেস্টিং শুরু করার আগে বা পুরনো সমস্ত টেস্ট ডাটা (মিল, বাজার, জমা, মেম্বার ইত্যাদি) এক ক্লিকে মুছে সিস্টেমকে সম্পূর্ণ নতুন অবস্থায় নিতে এই বাটনটি ব্যবহার করুন। শুধুমাত্র সুপার অ্যাডমিন অ্যাকাউন্ট বহাল থাকবে।
-          </p>
-        </div>
-
-        <div>
-          <button
-            type="button"
-            onClick={handleWipeDatabase}
-            disabled={wiping || pulling || pushing}
-            className="px-4 sm:px-5 py-2.5 sm:py-3 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl flex items-center space-x-2 transition-all shadow-sm disabled:opacity-50"
-          >
-            <Trash2 className={`w-4 h-4 ${wiping ? 'animate-spin' : ''}`} />
-            <span>{wiping ? 'ডাটা মুছে ফ্রেশ করা হচ্ছে...' : '🧹 সম্পূর্ণ ডাটাবেজ ফ্রেশ ও রিসেট করুন'}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Guide Card */}
-      <div className="bg-slate-50 p-5 sm:p-6 rounded-2xl border border-slate-200 text-xs text-slate-600 space-y-3">
-        <h4 className="font-bold text-slate-800 text-sm">💡 কিভাবে গুগল অ্যাপস স্ক্রিপ্ট ইউআরএল তৈরি বা আপডেট করবেন:</h4>
-        <ol className="list-decimal list-inside space-y-2 text-slate-600 leading-relaxed">
-          <li>আপনার গুগল স্প্রেডশিট ওপেন করে উপরের মেনু থেকে <span className="font-semibold text-slate-800">Extensions ➔ Apps Script</span> এ ক্লিক করুন।</li>
-          <li>প্রজেক্টের <span className="font-mono text-emerald-700 font-semibold">lib/gas/Code.gs</span> ফাইলের সমস্ত কোড কপি করে স্ক্রিপ্ট এডিটরে পেস্ট করুন।</li>
-          <li>উপরের ডানপাশে <span className="font-semibold text-slate-800">Deploy ➔ New deployment</span> এ ক্লিক করুন।</li>
-          <li>ধরন (type) হিসেবে <span className="font-semibold text-slate-800">Web app</span> সিলেক্ট করুন, Execute as: <span className="font-semibold text-slate-800">Me</span> দিন, এবং Who has access: <span className="font-semibold text-emerald-700">Anyone</span> নির্ধারণ করুন।</li>
-          <li><span className="font-semibold text-slate-800">Deploy</span> বাটনে ক্লিক করে তৈরি হওয়া Web App URL টি কপি করে ওপরের বক্সে সংরক্ষণ করুন!</li>
-        </ol>
+      {/* 3. Guide Card */}
+      <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 text-xs text-slate-600 space-y-2">
+        <h4 className="font-bold text-slate-800 text-sm">💡 গুগল অ্যাপস স্ক্রিপ্ট সেটআপ সংক্ষেপ:</h4>
+        <p className="leading-relaxed">
+          আপনার গুগল স্প্রেডশিটে <span className="font-semibold text-slate-800">Extensions ➔ Apps Script</span>-এ কোড পেস্ট করে <span className="font-semibold text-slate-800">Deploy ➔ New deployment (Web app, Anyone access)</span> নির্বাচন করে полученный URL টি ওপরের বক্সে সংরক্ষণ করুন।
+        </p>
       </div>
     </div>
   );

@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
-import { getDatabase, saveDatabase, pullFromGoogleSheets, pushToGoogleSheets, wipeDatabase } from '../../../../lib/db';
+import { getDatabase, saveDatabase, pullFromGoogleSheets, pushToGoogleSheets } from '../../../../lib/db';
 import { getGasUrl, getGasKey } from '../../../../lib/db/google-sheets';
 import { verifyToken } from '../../../../lib/auth';
+import { comparePassword } from '../../../../lib/password';
 
 export async function GET(request: Request) {
   try {
@@ -39,6 +40,23 @@ export async function POST(request: Request) {
 
     const body = await request.json();
 
+    // Action 0: Security PIN / Password verification to unlock database panel
+    if (body.action === 'verify-pin') {
+      const { pin } = body;
+      if (!pin) {
+        return NextResponse.json({ error: 'সিকিউরিটি পিন বা পাসওয়ার্ড প্রদান করুন।' }, { status: 400 });
+      }
+      const db = await getDatabase();
+      const superAdmin = db.members.find((m) => m.role === 'SUPER_ADMIN');
+      const isPasswordValid = Boolean(superAdmin && superAdmin.passwordHash && comparePassword(pin, superAdmin.passwordHash));
+      const isMasterPinValid = String(pin).trim() === '2026' || Boolean(db.config?.masterPin && String(pin).trim() === String(db.config.masterPin));
+
+      if (isPasswordValid || isMasterPinValid) {
+        return NextResponse.json({ success: true, message: 'ডাটাবেজ সেকশন সফলভাবে আনলক করা হয়েছে।' });
+      }
+      return NextResponse.json({ error: 'ভুল সিকিউরিটি পিন বা পাসওয়ার্ড। অনুগ্রহ করে পুনরায় চেষ্টা করুন।' }, { status: 401 });
+    }
+
     // Action 1: Pull fresh data directly from Google Sheets
     if (body.action === 'pull') {
       const freshDb = await pullFromGoogleSheets();
@@ -56,16 +74,6 @@ export async function POST(request: Request) {
       return NextResponse.json({
         success: true,
         message: 'গুগল শিটে সম্পূর্ণ ডাটাবেজ সফলভাবে সিঙ্ক (Push) করা হয়েছে।',
-      });
-    }
-
-    // Action 3: Wipe/Reset all test data cleanly
-    if (body.action === 'wipe' || body.action === 'reset') {
-      const wipedDb = await wipeDatabase(true);
-      return NextResponse.json({
-        success: true,
-        message: 'ডাটাবেজ এবং গুগল শিট সম্পূর্ণ ফ্রেশ ও রিসেট করা হয়েছে। সিস্টেমটি নতুন টেস্টের জন্য প্রস্তুত।',
-        membersCount: wipedDb.members.length,
       });
     }
 
