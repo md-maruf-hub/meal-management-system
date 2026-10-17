@@ -248,14 +248,45 @@ function readSheetJSON(ss, sheetName) {
 
 function writeFullDataSolution(ss, db) {
   writeCleanSheetJSON(ss, "Members", db.members || []);
-  writeCleanSheetJSON(ss, "Meals", db.meals || []);
-  writeCleanSheetJSON(ss, "BazarEntries", db.bazarEntries || []);
-  writeCleanSheetJSON(ss, "Expenses", db.expenses || []);
-  writeCleanSheetJSON(ss, "Deposits", db.deposits || []);
-  writeCleanSheetJSON(ss, "MonthLocks", db.monthLocks || []);
-  writeCleanSheetJSON(ss, "Settlements", db.settlements || []);
+  writeOperationalSheetJSON(ss, "Meals", db.meals || []);
+  writeOperationalSheetJSON(ss, "BazarEntries", db.bazarEntries || []);
+  writeOperationalSheetJSON(ss, "Expenses", db.expenses || []);
+  writeOperationalSheetJSON(ss, "Deposits", db.deposits || []);
+  writeOperationalSheetJSON(ss, "MonthLocks", db.monthLocks || []);
+  writeOperationalSheetJSON(ss, "Settlements", db.settlements || []);
   writeCleanSheetJSON(ss, "Security", db.securityTokens || []);
   writeCleanSheetJSON(ss, "AuditLogs", db.auditLogs || []);
+}
+
+function writeOperationalSheetJSON(ss, sheetName, items) {
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+  }
+
+  // Read existing items on sheet
+  var existingItems = readSheetJSON(ss, sheetName) || [];
+
+  // Find which yearMonths are present in incoming items
+  var incomingMonths = {};
+  for (var i = 0; i < (items || []).length; i++) {
+    if (items[i] && items[i].yearMonth) {
+      incomingMonths[items[i].yearMonth] = true;
+    }
+  }
+
+  // Preserve existing historical records belonging to other months
+  var preservedItems = [];
+  for (var e = 0; e < existingItems.length; e++) {
+    var ym = existingItems[e].yearMonth;
+    if (ym && !incomingMonths[ym]) {
+      preservedItems.push(existingItems[e]);
+    }
+  }
+
+  // Combine preserved past months with fresh incoming active month items
+  var combined = preservedItems.concat(items || []);
+  writeCleanSheetJSON(ss, sheetName, combined);
 }
 
 function writeCleanSheetJSON(ss, sheetName, items) {
