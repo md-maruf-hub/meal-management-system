@@ -134,10 +134,26 @@ export default function MainReportPage() {
               </h1>
               <p className="text-xs sm:text-sm font-medium text-emerald-700 mt-1">
                 মাসিক মূল হিসাব ও সমন্বয় বিবরণী — {selectedMonth}
-                {report?.assignedManagerName && (
-                  <span className="ml-2 font-bold text-slate-600">(ম্যানেজার: {report.assignedManagerName})</span>
-                )}
               </p>
+              {report?.assignedManagers && report.assignedManagers.length > 0 ? (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <span className="text-[11px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                    👑 চলতি দায়িত্বে ({report.assignedManagers.length}/৩ জন):
+                  </span>
+                  {report.assignedManagers.map((mgr) => (
+                    <span
+                      key={mgr.id}
+                      className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-300"
+                    >
+                      {mgr.name} {mgr.roomNo ? `(রুম ${mgr.roomNo})` : ''}
+                    </span>
+                  ))}
+                </div>
+              ) : report?.assignedManagerName ? (
+                <p className="text-xs text-slate-600 mt-1 font-semibold">
+                  👑 দায়িত্বপ্রাপ্ত ম্যানেজার: {report.assignedManagerName}
+                </p>
+              ) : null}
             </div>
 
             <div className="bg-slate-50 p-3.5 sm:p-4 rounded-xl border border-slate-200 text-left sm:text-right space-y-1 w-full sm:w-auto">
@@ -284,7 +300,11 @@ export default function MainReportPage() {
               <p>সূত্র: মিল রেট = মোট বাজার খরচ ÷ মোট মিল | ব্যালেন্স = মোট জমা − মোট খরচ</p>
             </div>
             <div className="text-left sm:text-right">
-              <p className="font-semibold text-slate-700">ম্যানেজারের স্বাক্ষর: __________________</p>
+              <p className="font-semibold text-slate-700">
+                {report?.assignedManagers && report.assignedManagers.length > 1
+                  ? 'ম্যানেজারগণের স্বাক্ষর: __________________'
+                  : 'ম্যানেজারের স্বাক্ষর: __________________'}
+              </p>
             </div>
           </div>
         </div>

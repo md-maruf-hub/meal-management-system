@@ -187,14 +187,26 @@ function normalizeGasData(raw: any): DatabaseSchema {
     createdAt: String(d.createdAt || new Date().toISOString()),
   }));
 
-  const monthLocks = (raw.monthLocks || []).map((l: any) => ({
-    id: String(l.id),
-    yearMonth: normalizeYearMonth(l.yearMonth),
-    status: l.status as any,
-    managerId: l.managerId ? String(l.managerId) : undefined,
-    lockedBy: String(l.lockedBy || ''),
-    lockedAt: String(l.lockedAt || new Date().toISOString()),
-  }));
+  const monthLocks = (raw.monthLocks || []).map((l: any) => {
+    let ids: string[] = [];
+    if (Array.isArray(l.managerIds)) {
+      ids = l.managerIds.map((id: any) => String(id)).filter(Boolean);
+    } else if (l.managerIds && typeof l.managerIds === 'string') {
+      ids = l.managerIds.split(',').map((id: string) => id.trim()).filter(Boolean);
+    } else if (l.managerId) {
+      ids = [String(l.managerId).trim()];
+    }
+
+    return {
+      id: String(l.id),
+      yearMonth: normalizeYearMonth(l.yearMonth),
+      status: l.status as any,
+      managerId: ids[0] || (l.managerId ? String(l.managerId) : undefined),
+      managerIds: ids,
+      lockedBy: String(l.lockedBy || ''),
+      lockedAt: String(l.lockedAt || new Date().toISOString()),
+    };
+  });
 
   const settlements = (raw.settlements || []).map((s: any) => ({
     id: String(s.id),

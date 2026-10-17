@@ -66,7 +66,8 @@ export interface MonthLock {
   id: string;
   yearMonth: string;
   status: MonthStatus;
-  managerId?: string; // Assigned manager for this month
+  managerId?: string; // Legacy single assigned manager
+  managerIds?: string[]; // Up to 3 assigned managers for this month
   lockedBy: string;
   lockedAt: string;
 }
@@ -158,9 +159,18 @@ export interface MemberCalculation {
   giveBalance?: number;    // Backward compatibility
 }
 
+export interface MonthManagerInfo {
+  id: string;
+  memberId: string;
+  name: string;
+  roomNo: string;
+  phone?: string;
+}
+
 export interface MonthlyReport {
   yearMonth: string;
   assignedManagerName?: string;
+  assignedManagers?: MonthManagerInfo[];
   totalMeals: number;
   totalBazar: number;
   millRate: number;

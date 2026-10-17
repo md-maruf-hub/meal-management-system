@@ -8,13 +8,26 @@ export async function GET(request: Request) {
 
   const db = await getDatabase();
   
-  // Find assigned manager name for this month
+  // Find assigned managers for this month (supporting up to 3 managers)
   const monthLock = (db.monthLocks || []).find((l) => l.yearMonth === yearMonth);
-  let assignedManagerName: string | undefined = undefined;
-  if (monthLock && monthLock.managerId) {
-    const mgr = db.members.find((m) => m.id === monthLock.managerId);
-    if (mgr) assignedManagerName = mgr.name;
-  }
+  const managerIds: string[] = monthLock?.managerIds && monthLock.managerIds.length > 0
+    ? monthLock.managerIds
+    : (monthLock?.managerId ? [monthLock.managerId] : []);
+
+  const assignedManagers = managerIds
+    .map((id) => db.members.find((m) => m.id === id || m.memberId === id))
+    .filter((m): m is typeof db.members[0] => Boolean(m))
+    .map((m) => ({
+      id: m.id,
+      memberId: m.memberId,
+      name: m.name,
+      roomNo: m.roomNo,
+      phone: m.phone,
+    }));
+
+  const assignedManagerName = assignedManagers.length > 0
+    ? assignedManagers.map((m) => `${m.name}${m.roomNo ? ` (রুম ${m.roomNo})` : ''}`).join(', ')
+    : undefined;
 
   const report = calculateMonthlyReport(
     yearMonth,
@@ -24,7 +37,8 @@ export async function GET(request: Request) {
     db.expenses,
     db.deposits,
     db.settlements || [],
-    assignedManagerName
+    assignedManagerName,
+    assignedManagers
   );
 
   return NextResponse.json({ report });

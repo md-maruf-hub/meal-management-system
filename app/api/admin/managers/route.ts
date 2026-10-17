@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server';
 import { getDatabase, saveDatabase } from '../../../../lib/db';
 import { AuditLog, MonthLock } from '../../../../lib/types';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const yearMonth = searchParams.get('yearMonth');
+  const yearMonth = searchParams.get('yearMonth') || new Date().toISOString().substring(0, 7);
 
   const db = await getDatabase();
   const approvedMembers = db.members.filter(
@@ -12,88 +14,128 @@ export async function GET(request: Request) {
   );
 
   const monthLocks = db.monthLocks || [];
-  const monthManagerMap: Record<string, string> = {};
+  const currentLock = monthLocks.find((ml) => ml.yearMonth === yearMonth);
+
+  const currentManagerIds: string[] = currentLock?.managerIds && currentLock.managerIds.length > 0
+    ? currentLock.managerIds
+    : (currentLock?.managerId ? [currentLock.managerId] : []);
+
+  const assignedManagers = currentManagerIds
+    .map((id) => db.members.find((m) => m.id === id || m.memberId === id))
+    .filter(Boolean);
+
+  const monthManagerMap: Record<string, string[]> = {};
   monthLocks.forEach((ml) => {
-    if (ml.managerId) monthManagerMap[ml.yearMonth] = ml.managerId;
+    const ids = ml.managerIds && ml.managerIds.length > 0 ? ml.managerIds : (ml.managerId ? [ml.managerId] : []);
+    monthManagerMap[ml.yearMonth] = ids;
   });
 
-  return NextResponse.json({
-    members: approvedMembers,
-    monthLocks,
-    monthManagerMap,
-  });
+  return NextResponse.json(
+    {
+      members: approvedMembers,
+      monthLocks,
+      yearMonth,
+      currentManagerIds,
+      assignedManagers,
+      monthManagerMap,
+      maxLimit: 3,
+      isMaxReached: currentManagerIds.length >= 3,
+    },
+    {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      },
+    }
+  );
 }
 
 export async function POST(request: Request) {
   try {
-    const { memberId, newRole, yearMonth, adminName } = await request.json();
+    const { memberId, action = 'ADD', yearMonth, adminName } = await request.json();
+
+    if (!yearMonth || !memberId) {
+      return NextResponse.json({ error: 'মেম্বার আইডি ও মাস নির্বাচন আবশ্যক।' }, { status: 400 });
+    }
 
     const db = await getDatabase();
+    const targetMember = db.members.find((m) => m.id === memberId || m.memberId === memberId);
+    if (!targetMember) {
+      return NextResponse.json({ error: 'মেম্বার খুঁজে পাওয়া যায়নি।' }, { status: 404 });
+    }
 
-    // Case 1: Assign Manager for a specific month
-    if (yearMonth && memberId) {
-      const targetMember = db.members.find((m) => m.id === memberId);
-      if (!targetMember) {
-        return NextResponse.json({ error: 'Member not found.' }, { status: 404 });
-      }
+    let lock = db.monthLocks.find((l) => l.yearMonth === yearMonth);
+    if (!lock) {
+      lock = {
+        id: `lock-${Date.now()}`,
+        yearMonth,
+        status: 'RUNNING',
+        managerIds: [],
+        lockedBy: adminName || 'Super Admin',
+        lockedAt: new Date().toISOString(),
+      };
+      db.monthLocks.push(lock);
+    }
 
-      targetMember.role = 'MANAGER';
+    if (!lock.managerIds) {
+      lock.managerIds = lock.managerId ? [lock.managerId] : [];
+    }
 
-      let lock = db.monthLocks.find((l) => l.yearMonth === yearMonth);
-      if (!lock) {
-        lock = {
-          id: `lock-${Date.now()}`,
-          yearMonth,
-          status: 'RUNNING',
-          managerId: memberId,
-          lockedBy: adminName || 'Super Admin',
-          lockedAt: new Date().toISOString(),
-        };
-        db.monthLocks.push(lock);
-      } else {
-        lock.managerId = memberId;
-      }
+    // Handle REMOVE
+    if (action === 'REMOVE') {
+      lock.managerIds = lock.managerIds.filter((id) => id !== targetMember.id && id !== targetMember.memberId);
+      lock.managerId = lock.managerIds[0] || undefined;
 
       db.auditLogs.push({
         id: `audit-${Date.now()}`,
         userId: 'admin',
         userName: adminName || 'Super Admin',
-        action: 'ASSIGN_MONTH_MANAGER',
-        details: `Assigned ${targetMember.name} as Manager for month ${yearMonth}.`,
+        action: 'REMOVE_MONTH_MANAGER',
+        details: `${yearMonth} মাসের ম্যানেজার পদ থেকে ${targetMember.name} কে অব্যাহতি দেওয়া হয়েছে।`,
         timestamp: new Date().toISOString(),
       });
 
       await saveDatabase(db);
-      return NextResponse.json({ success: true, message: `${targetMember.name} assigned as manager for ${yearMonth}.` });
+      return NextResponse.json({
+        success: true,
+        message: `${targetMember.name} কে ${yearMonth} মাসের ম্যানেজার তালিকা থেকে সফলভাবে রিমুভ করা হয়েছে।`,
+        managerIds: lock.managerIds,
+      });
     }
 
-    // Case 2: General Role Change
-    if (!memberId || (newRole !== 'MANAGER' && newRole !== 'MEMBER')) {
-      return NextResponse.json({ error: 'Invalid memberId or newRole.' }, { status: 400 });
+    // Handle ADD
+    const isAlreadyManager = lock.managerIds.some((id) => id === targetMember.id || id === targetMember.memberId);
+    if (isAlreadyManager) {
+      return NextResponse.json({
+        error: `${targetMember.name} ইতিমধ্যে ${yearMonth} মাসের ম্যানেজার তালিকায় নিয়োজিত আছেন।`,
+      }, { status: 400 });
     }
 
-    const index = db.members.findIndex((m) => m.id === memberId);
-    if (index === -1) {
-      return NextResponse.json({ error: 'Member not found.' }, { status: 404 });
+    if (lock.managerIds.length >= 3) {
+      return NextResponse.json({
+        error: 'এই মাসে ইতিমধ্যে সর্বোচ্চ ৩ জন ম্যানেজার নিয়োজিত আছেন। নতুন কাউকে যুক্ত করতে চাইলে আগে যেকোনো একজনকে রিমুভ করুন।',
+      }, { status: 400 });
     }
 
-    const targetMember = db.members[index];
-    const oldRole = targetMember.role;
-    db.members[index].role = newRole;
+    lock.managerIds.push(targetMember.id);
+    lock.managerId = lock.managerIds[0];
 
     db.auditLogs.push({
       id: `audit-${Date.now()}`,
       userId: 'admin',
       userName: adminName || 'Super Admin',
-      action: 'ROLE_CHANGED',
-      details: `Changed role of ${targetMember.name} (${targetMember.memberId}) from ${oldRole} to ${newRole}.`,
+      action: 'ASSIGN_MONTH_MANAGER',
+      details: `${yearMonth} মাসের ম্যানেজার হিসেবে ${targetMember.name} (${targetMember.memberId}) কে নিয়োগ দেওয়া হয়েছে। (মোট: ${lock.managerIds.length}/৩ জন)`,
       timestamp: new Date().toISOString(),
     });
 
     await saveDatabase(db);
-    return NextResponse.json({ success: true, member: db.members[index] });
-  } catch (error) {
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({
+      success: true,
+      message: `${targetMember.name} কে ${yearMonth} মাসের ম্যানেজার হিসেবে সফলভাবে যুক্ত করা হয়েছে (${lock.managerIds.length}/৩ জন)।`,
+      managerIds: lock.managerIds,
+    });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
   }
 }
 

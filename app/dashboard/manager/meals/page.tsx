@@ -36,6 +36,7 @@ export default function DailyMealsMatrix() {
 
   const [meals, setMeals] = useState<Record<string, Record<number, number>>>({});
   const [dailyState, setDailyState] = useState<DailyMemberMealState[]>([]);
+  const [assignedManagers, setAssignedManagers] = useState<Array<{ id: string; name: string; memberId: string; roomNo: string }>>([]);
   const [isLocked, setIsLocked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -81,9 +82,10 @@ export default function DailyMealsMatrix() {
 
       setMeals(matrixMap);
 
-      // 3. Fetch Members
+      // 3. Fetch Members & Managers
       const repRes = await fetch(`/api/reports?yearMonth=${selectedMonth}`);
       const repData = await repRes.json();
+      setAssignedManagers(repData.report?.assignedManagers || []);
       const activeMembers = repData.report?.memberCalculations || [];
 
       // Initialize daily B/L/D/G state for currentDayNum
@@ -304,6 +306,29 @@ export default function DailyMealsMatrix() {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
+      {/* Month Active Managers Banner */}
+      {assignedManagers.length > 0 && (
+        <div className="bg-slate-900 text-white px-4 py-3 rounded-2xl border border-slate-700/60 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-extrabold text-emerald-400 flex items-center space-x-1.5">
+              <span>👑 {selectedMonth} মাসের দায়িত্বে ({assignedManagers.length}/৩ জন):</span>
+            </span>
+            {assignedManagers.map((m) => (
+              <span
+                key={m.id}
+                className="bg-slate-800 text-slate-200 px-3 py-1 rounded-xl border border-slate-700 font-bold flex items-center space-x-1 shadow-sm"
+              >
+                <span>{m.name}</span>
+                {m.roomNo && <span className="text-[11px] text-emerald-300 font-semibold">(রুম {m.roomNo})</span>}
+              </span>
+            ))}
+          </div>
+          <span className="text-[11px] text-slate-400 font-medium self-end sm:self-auto">
+            রিয়েল-টাইম ম্যানেজার তালিকা
+          </span>
+        </div>
+      )}
+
       {/* View Switcher & Action Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 sm:p-4 rounded-2xl border border-slate-200 shadow-sm">
         <div className="flex flex-wrap items-center gap-2">

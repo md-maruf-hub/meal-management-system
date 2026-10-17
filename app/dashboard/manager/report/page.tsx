@@ -298,9 +298,26 @@ export default function ManagerTotalReportPage() {
                 {isMonthClosed ? '🔒 মাস বন্ধ / ক্লোজড' : '🟢 মাস চলমান (Active)'}
               </span>
             </div>
-            <p className="text-xs text-slate-500">
-              {report?.assignedManagerName ? `দায়িত্বপ্রাপ্ত ম্যানেজার: ${report.assignedManagerName}` : 'ম্যানেজার পোর্টাল'}
-            </p>
+            {report?.assignedManagers && report.assignedManagers.length > 0 ? (
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                <span className="text-[11px] font-bold text-slate-500">
+                  দায়িত্বপ্রাপ্ত ({report.assignedManagers.length}/৩ জন):
+                </span>
+                {report.assignedManagers.map((m) => (
+                  <span
+                    key={m.id}
+                    className="text-[11px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-300 flex items-center space-x-1"
+                  >
+                    <span>👑 {m.name}</span>
+                    {m.roomNo && <span className="text-[10px] text-emerald-600 font-semibold">(রুম {m.roomNo})</span>}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500">
+                {report?.assignedManagerName ? `দায়িত্বপ্রাপ্ত ম্যানেজার: ${report.assignedManagerName}` : 'ম্যানেজার পোর্টাল'}
+              </p>
+            )}
           </div>
         </div>
 

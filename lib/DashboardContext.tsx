@@ -97,10 +97,13 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Compute all months where this user was or is manager
+  // Compute all months where this user was or is manager (supporting both managerId and managerIds)
   const assignedMonths = user && locks.length > 0
     ? locks
-        .filter((l) => l.managerId === user.id || l.managerId === user.memberId)
+        .filter((l) => {
+          const ids = l.managerIds && l.managerIds.length > 0 ? l.managerIds : (l.managerId ? [l.managerId] : []);
+          return ids.includes(user.id) || ids.includes(user.memberId);
+        })
         .map((l) => l.yearMonth)
     : [];
 
@@ -111,7 +114,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       effectiveRole = 'SUPER_ADMIN';
     } else {
       const currentLock = locks.find((l) => l.yearMonth === selectedMonth);
-      const isAssignedManager = currentLock?.managerId === user.id || currentLock?.managerId === user.memberId;
+      const ids = currentLock?.managerIds && currentLock.managerIds.length > 0 
+        ? currentLock.managerIds 
+        : (currentLock?.managerId ? [currentLock.managerId] : []);
+      const isAssignedManager = ids.includes(user.id) || ids.includes(user.memberId);
       effectiveRole = isAssignedManager ? 'MANAGER' : 'MEMBER';
     }
   }

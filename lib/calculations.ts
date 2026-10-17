@@ -1,4 +1,4 @@
-import { Member, MealEntry, BazarEntry, ExpenseItem, Deposit, SettlementEntry, MonthlyReport, MemberCalculation } from './types';
+import { Member, MealEntry, BazarEntry, ExpenseItem, Deposit, SettlementEntry, MonthlyReport, MemberCalculation, MonthManagerInfo } from './types';
 
 export function roundDecimal(num: number, decimals: number = 3): number {
   const factor = Math.pow(10, decimals);
@@ -13,7 +13,8 @@ export function calculateMonthlyReport(
   expenses: ExpenseItem[],
   deposits: Deposit[],
   settlements: SettlementEntry[] = [],
-  assignedManagerName?: string
+  assignedManagerName?: string,
+  assignedManagers?: MonthManagerInfo[]
 ): MonthlyReport {
   // Active members for a month include:
   // 1. Members who had meals or deposits in that specific yearMonth (historical activity)
@@ -202,6 +203,7 @@ export function calculateMonthlyReport(
   return {
     yearMonth,
     assignedManagerName,
+    assignedManagers,
     totalMeals,
     totalBazar,
     millRate,
