@@ -1,13 +1,45 @@
-import { DatabaseSchema } from './local-storage';
+import { DatabaseSchema, readDb } from './local-storage';
 
-const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbzrMAzwz8YawU09vBIh0xopzVDbghs1Y3tbUbWgB468wSr2yUf63bM8FaWuEX50Uy-Q/exec";
+const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbxBczsU1fa5rBb09jDsNVatRl1FnP_BFaKS-eroESfUoxnJzh0U-TCphCwk8Avqj8WZ/exec";
 
 export function getGasUrl(): string {
-  return process.env.GAS_API_URL || DEFAULT_GAS_URL;
+  // 1. Check local database config first (persisted dynamically by Super Admin via Dashboard)
+  try {
+    const db = readDb();
+    if (db?.config?.gasUrl && typeof db.config.gasUrl === 'string' && db.config.gasUrl.trim().length > 0) {
+      return db.config.gasUrl.trim();
+    }
+  } catch (err) {
+    // ignore read errors, fallback to env
+  }
+
+  // 2. Check process.env.GAS_API_URL
+  if (process.env.GAS_API_URL && process.env.GAS_API_URL.trim().length > 0) {
+    return process.env.GAS_API_URL.trim();
+  }
+
+  // 3. Fallback to default
+  return DEFAULT_GAS_URL;
 }
 
 export function getGasKey(): string {
-  return process.env.GAS_API_KEY || 'MILL_SECRET_KEY_2026';
+  // 1. Check local database config first
+  try {
+    const db = readDb();
+    if (db?.config?.gasApiKey && typeof db.config.gasApiKey === 'string' && db.config.gasApiKey.trim().length > 0) {
+      return db.config.gasApiKey.trim();
+    }
+  } catch (err) {
+    // ignore read errors, fallback to env
+  }
+
+  // 2. Check process.env.GAS_API_KEY
+  if (process.env.GAS_API_KEY && process.env.GAS_API_KEY.trim().length > 0) {
+    return process.env.GAS_API_KEY.trim();
+  }
+
+  // 3. Fallback to default secret key
+  return 'MILL_SECRET_KEY_2026';
 }
 
 export async function fetchGasData(action: string, payload: Record<string, unknown> = {}): Promise<unknown> {

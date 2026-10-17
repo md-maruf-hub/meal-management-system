@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
-import { getDatabase, saveDatabase, pullFromGoogleSheets, pushToGoogleSheets } from '../../../../lib/db';
+import { getDatabase, saveDatabase, saveLocalDatabase, pullFromGoogleSheets, pushToGoogleSheets } from '../../../../lib/db';
 import { getGasUrl, getGasKey } from '../../../../lib/db/google-sheets';
 import { verifyToken } from '../../../../lib/auth';
 import { comparePassword } from '../../../../lib/password';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {
@@ -19,10 +21,17 @@ export async function GET(request: Request) {
     const currentUrl = getGasUrl();
     const currentKey = getGasKey();
 
-    return NextResponse.json({
-      gasUrl: currentUrl,
-      gasKey: currentKey,
-    });
+    return NextResponse.json(
+      {
+        gasUrl: currentUrl,
+        gasKey: currentKey,
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        },
+      }
+    );
   } catch (error) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
@@ -80,7 +89,12 @@ export async function POST(request: Request) {
     const { gasUrl, testOnly } = body;
 
     if (!gasUrl || !gasUrl.startsWith('https://script.google.com')) {
-      return NextResponse.json({ error: 'Invalid Google Apps Script Web App URL.' }, { status: 400 });
+      if (gasUrl && gasUrl.includes('docs.google.com/spreadsheets')) {
+        return NextResponse.json({
+          error: 'আপনি গুগল স্প্রেডশিটের সরাসরি ভিউ লিংক দিয়েছেন। অনুগ্রহ করে স্প্রেডশিটের Extensions ➔ Apps Script ➔ Deploy ➔ Web app থেকে প্রাপ্ত "https://script.google.com/macros/s/.../exec" লিংকটি দিন।',
+        }, { status: 400 });
+      }
+      return NextResponse.json({ error: 'সঠিক গুগল অ্যাপস স্ক্রিপ্ট ওয়েব অ্যাপ ইউআরএল (https://script.google.com/macros/s/.../exec) প্রদান করুন।' }, { status: 400 });
     }
 
     // Ping the GAS endpoint
@@ -120,11 +134,15 @@ export async function POST(request: Request) {
 
     if (!pingSuccess) {
       return NextResponse.json({
-        error: `Could not verify Google Apps Script URL: ${pingError}`,
+        error: `গুগল অ্যাপস স্ক্রিপ্টে সংযোগ করা যায়নি: ${pingError}। অনুগ্রহ করে নিশ্চিত করুন Web app টি "Anyone" অ্যাক্সেস দিয়ে ডেপ্লয় করা হয়েছে।`,
       }, { status: 400 });
     }
 
-    // Save to .env.local if filesystem is writable
+    // 1. Immediately update in-memory process.env so running server instantly sees it
+    process.env.GAS_API_URL = gasUrl.trim();
+    process.env.GAS_API_KEY = apiKey;
+
+    // 2. Persist to .env.local if filesystem is writable
     try {
       const envPath = path.join(process.cwd(), '.env.local');
       const envContent = `GAS_API_URL=${gasUrl.trim()}
@@ -136,15 +154,17 @@ NEXT_PUBLIC_APP_URL=${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
       // In serverless environments like Vercel, filesystem is read-only
     }
 
-    // Also update local database and trigger sync
+    // 3. Immediately persist to database.json config
     const db = await getDatabase();
     if (!db.config) db.config = {};
     db.config.gasUrl = gasUrl.trim();
-    await saveDatabase(db);
+    db.config.gasApiKey = apiKey;
+    await saveLocalDatabase(db);
 
     return NextResponse.json({
       success: true,
-      message: 'Google Sheets Database URL saved and synchronized successfully!',
+      message: 'গুগল শিট ডাটাবেজ ইউআরএল সফলভাবে সংরক্ষিত এবং সংযুক্ত হয়েছে!',
+      gasUrl: gasUrl.trim(),
       pingDuration,
     });
   } catch (error: any) {

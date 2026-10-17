@@ -35,7 +35,10 @@ export default function AdminDatabasePage() {
   const fetchConfig = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/database');
+      const res = await fetch(`/api/admin/database?t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' },
+      });
       const data = await res.json();
       if (data.gasUrl) {
         setGasUrl(data.gasUrl);
@@ -131,10 +134,14 @@ export default function AdminDatabasePage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
+        if (data.gasUrl) {
+          setGasUrl(data.gasUrl);
+        }
         setStatusMessage({
           type: 'success',
-          text: `ডাটাবেজ ইউআরএল সংরক্ষিত এবং সফলভাবে সিঙ্ক সম্পন্ন হয়েছে (${data.pingDuration}ms)!`,
+          text: `ডাটাবেজ ইউআরএল সংরক্ষিত এবং সফলভাবে সংযুক্ত হয়েছে (${data.pingDuration}ms)!`,
         });
+        await fetchConfig();
       } else {
         setStatusMessage({
           type: 'error',
@@ -345,6 +352,9 @@ export default function AdminDatabasePage() {
               />
               <Link2 className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
             </div>
+            <p className="text-[11px] text-slate-500 mt-1.5 leading-normal">
+              💡 <span className="font-semibold text-slate-700">নোট:</span> এটি স্প্রেডশিটের ভিউ লিংক নয়, Apps Script ➔ Deploy ➔ Web app থেকে প্রাপ্ত <span className="font-mono text-emerald-700 font-bold">https://script.google.com/macros/s/.../exec</span> লিংক হতে হবে।
+            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">

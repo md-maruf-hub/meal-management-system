@@ -61,6 +61,11 @@ export function getInitialData(): DatabaseSchema {
         timestamp: new Date().toISOString(),
       },
     ],
+    config: {
+      gasUrl: process.env.GAS_API_URL || '',
+      gasApiKey: process.env.GAS_API_KEY || 'MILL_SECRET_KEY_2026',
+      masterPin: '2026',
+    },
   };
 }
 
@@ -77,6 +82,13 @@ export function readDb(): DatabaseSchema {
     if (!parsed.securityTokens) parsed.securityTokens = [];
     if (!parsed.mealRequests) parsed.mealRequests = [];
     if (!parsed.dailyMealLocks) parsed.dailyMealLocks = [];
+    if (!parsed.config) {
+      parsed.config = {
+        gasUrl: process.env.GAS_API_URL || '',
+        gasApiKey: process.env.GAS_API_KEY || 'MILL_SECRET_KEY_2026',
+        masterPin: '2026',
+      };
+    }
     return parsed;
   } catch (error) {
     return getInitialData();
