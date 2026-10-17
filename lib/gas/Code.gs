@@ -313,6 +313,8 @@ function writeCleanSheetJSON(ss, sheetName, items) {
         row.push("");
       } else if (headers[h] === "yearMonth") {
         row.push("'" + String(val));
+      } else if (Array.isArray(val)) {
+        row.push(val.join(","));
       } else {
         row.push(val);
       }
@@ -366,7 +368,7 @@ function generateAllMonthlyVisualSheets(ss, db) {
       }
     }
     var isClosed = lock && (lock.status === "CLOSED" || lock.status === "LOCKED");
-    var tabSheet = generateCombinedMonthlyTab(ss, yearMonth, members, meals, bazarEntries, expenses, deposits);
+    var tabSheet = generateCombinedMonthlyTab(ss, yearMonth, members, meals, bazarEntries, expenses, deposits, lock);
     if (tabSheet) {
       try {
         tabSheet.setTabColor(isClosed ? "#64748b" : "#10b981");
@@ -375,7 +377,7 @@ function generateAllMonthlyVisualSheets(ss, db) {
   }
 }
 
-function generateCombinedMonthlyTab(ss, yearMonth, members, meals, bazarEntries, expenses, deposits) {
+function generateCombinedMonthlyTab(ss, yearMonth, members, meals, bazarEntries, expenses, deposits, lock) {
   var sheet = ss.getSheetByName(yearMonth);
   if (!sheet) {
     sheet = ss.insertSheet(yearMonth);
@@ -397,6 +399,36 @@ function generateCombinedMonthlyTab(ss, yearMonth, members, meals, bazarEntries,
     }
     rows.push(r);
   }
+
+  // Resolve assigned managers for this month (up to 3)
+  var managerNames = [];
+  if (lock) {
+    var mIds = [];
+    if (Array.isArray(lock.managerIds)) {
+      mIds = lock.managerIds;
+    } else if (lock.managerIds && typeof lock.managerIds === 'string') {
+      mIds = lock.managerIds.split(',');
+    } else if (lock.managerId) {
+      mIds = [lock.managerId];
+    }
+    for (var mi = 0; mi < mIds.length; mi++) {
+      var targetId = String(mIds[mi]).trim();
+      for (var mb = 0; mb < members.length; mb++) {
+        if (members[mb].id === targetId || members[mb].memberId === targetId) {
+          managerNames.push(members[mb].name + (members[mb].roomNo ? " (রুম " + members[mb].roomNo + ")" : ""));
+          break;
+        }
+      }
+    }
+  }
+  var managerBanner = managerNames.length > 0 
+    ? "দায়িত্বপ্রাপ্ত ম্যানেজারবৃন্দ (" + managerNames.length + "/৩ জন): " + managerNames.join("  •  ") 
+    : "দায়িত্বপ্রাপ্ত ম্যানেজার: কোনো ম্যানেজার নির্ধারিত নেই";
+
+  var isClosed = lock && (lock.status === "CLOSED" || lock.status === "LOCKED");
+  pushPaddedRow(["মিল ম্যানেজমেন্ট সিস্টেম", "মাসিক হিসাব বিবরণী — " + yearMonth, "স্ট্যাটাস: " + (isClosed ? "লকড" : "চলমান")]);
+  pushPaddedRow([managerBanner]);
+  pushPaddedRow([]);
 
   pushPaddedRow(matrixHeaders);
 
@@ -615,6 +647,16 @@ function generateCombinedMonthlyTab(ss, yearMonth, members, meals, bazarEntries,
   sheet.getRange(1, 1, rows.length, matrixHeaders.length).setValues(rows);
 
   sheet.getRange(1, 1, 1, matrixHeaders.length)
+    .setBackground("#0f172a")
+    .setFontColor("#ffffff")
+    .setFontWeight("bold");
+
+  sheet.getRange(2, 1, 1, matrixHeaders.length)
+    .setBackground("#ecfdf5")
+    .setFontColor("#065f46")
+    .setFontWeight("bold");
+
+  sheet.getRange(4, 1, 1, matrixHeaders.length)
     .setBackground("#1e40af")
     .setFontColor("#ffffff")
     .setFontWeight("bold");
