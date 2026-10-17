@@ -35,6 +35,7 @@ export default function ManagerTotalReportPage() {
 
   // Local state
   const [report, setReport] = useState<MonthlyReport | null>(null);
+  const [source, setSource] = useState<string>('VIRTUAL_DB');
   const [bazarList, setBazarList] = useState<BazarEntry[]>([]);
   const [utilityList, setUtilityList] = useState<ExpenseItem[]>([]);
   const [depositsList, setDepositsList] = useState<Deposit[]>([]);
@@ -80,6 +81,9 @@ export default function ManagerTotalReportPage() {
         setReport(repData.report);
       } else {
         setReport(null);
+      }
+      if (repData.source) {
+        setSource(repData.source);
       }
 
       setBazarList(expData.bazarEntries || []);
@@ -288,7 +292,7 @@ export default function ManagerTotalReportPage() {
             {isMonthClosed ? <Lock className="w-5 h-5" /> : <Unlock className="w-5 h-5" />}
           </div>
           <div>
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="font-extrabold text-slate-800 text-sm">
                 মাস: {selectedMonth}
               </span>
@@ -297,6 +301,15 @@ export default function ManagerTotalReportPage() {
               }`}>
                 {isMonthClosed ? '🔒 মাস বন্ধ / ক্লোজড' : '🟢 মাস চলমান (Active)'}
               </span>
+              {source === 'GOOGLE_SHEET' ? (
+                <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                  ☁️ গুগল শিট (সংরক্ষিত অতীত মাস)
+                </span>
+              ) : (
+                <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  ⚡ ভার্চুয়াল ডাটাবেজ (সক্রিয় রানিং মাস)
+                </span>
+              )}
             </div>
             {report?.assignedManagers && report.assignedManagers.length > 0 ? (
               <div className="mt-1 flex flex-wrap items-center gap-1.5">

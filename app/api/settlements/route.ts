@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDatabase, saveDatabase } from '../../../lib/db';
+import { getDatabase, saveDatabase, getMonthScopedData } from '../../../lib/db';
 import { verifyToken } from '../../../lib/auth';
 import { SettlementEntry, Deposit } from '../../../lib/types';
 
@@ -8,14 +8,16 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const yearMonth = searchParams.get('yearMonth');
 
-    const db = await getDatabase();
-    let settlements = db.settlements || [];
-
     if (yearMonth) {
-      settlements = settlements.filter((s) => s.yearMonth === yearMonth);
+      const monthScoped = await getMonthScopedData(yearMonth);
+      return NextResponse.json({
+        settlements: monthScoped.settlements,
+        source: monthScoped.source,
+      });
     }
 
-    return NextResponse.json({ settlements });
+    const db = await getDatabase();
+    return NextResponse.json({ settlements: db.settlements || [] });
   } catch (error) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

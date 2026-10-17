@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Database, CheckCircle, AlertCircle, RefreshCw, Send, ShieldCheck, Link2, Lock, Unlock, Eye, EyeOff, KeyRound } from 'lucide-react';
+import { Database, CheckCircle, AlertCircle, RefreshCw, Send, ShieldCheck, Link2, Lock, Unlock, Eye, EyeOff, KeyRound, Download, Sparkles } from 'lucide-react';
 
 export default function AdminDatabasePage() {
   // Master Security PIN / Password State
@@ -20,6 +20,8 @@ export default function AdminDatabasePage() {
   const [pingResult, setPingResult] = useState<{ success: boolean; duration: number } | null>(null);
   const [pulling, setPulling] = useState(false);
   const [pushing, setPushing] = useState(false);
+  const [cleaning, setCleaning] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     // Check if session was previously unlocked in this browser tab
@@ -197,6 +199,58 @@ export default function AdminDatabasePage() {
       setStatusMessage({ type: 'error', text: err.message || 'ডাটা পাঠানোর অনুরোধ ব্যর্থ হয়েছে।' });
     } finally {
       setPushing(false);
+    }
+  };
+
+  const handleCleanVirtualDb = async () => {
+    if (!confirm('আপনি কি নিশ্চিত যে ভার্চুয়াল ডাটাবেজ অপ্টিমাইজ করতে চান? এটি গুগল শিটে সব ডাটা পুশ করে অতীত মাসের রেকর্ডগুলো লোকাল মেমোরি থেকে ক্লিন করবে (রানিং মাস অক্ষত থাকবে)।')) return;
+    setCleaning(true);
+    setStatusMessage(null);
+    try {
+      const res = await fetch('/api/admin/database', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'clean-virtual-db' }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setStatusMessage({ type: 'success', text: data.message });
+      } else {
+        setStatusMessage({ type: 'error', text: data.error || 'অপ্টিমাইজেশন ব্যর্থ হয়েছে।' });
+      }
+    } catch (err: any) {
+      setStatusMessage({ type: 'error', text: 'অনুরোধ ব্যর্থ হয়েছে।' });
+    } finally {
+      setCleaning(false);
+    }
+  };
+
+  const handleDownloadBackup = async () => {
+    setDownloading(true);
+    try {
+      const res = await fetch('/api/admin/database', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'backup' }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const jsonStr = JSON.stringify(data.data, null, 2);
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `mess_management_backup_${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        setStatusMessage({ type: 'success', text: 'সম্পূর্ণ ডাটাবেজ ব্যাকআপ (JSON) সফলভাবে ডাউনলোড হয়েছে।' });
+      }
+    } catch (err: any) {
+      setStatusMessage({ type: 'error', text: 'ব্যাকআপ ডাউনলোড ব্যর্থ হয়েছে।' });
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -412,7 +466,46 @@ export default function AdminDatabasePage() {
         </div>
       </div>
 
-      {/* 3. Guide Card */}
+      {/* 3. Essential Option: Virtual DB Optimization & Backup */}
+      <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div>
+          <div className="flex items-center space-x-2">
+            <h3 className="text-base font-bold text-slate-800">ভার্চুয়াল ডাটাবেজ অপ্টিমাইজেশন ও ব্যাকআপ</h3>
+            <span className="text-[11px] font-extrabold px-2 py-0.5 rounded-md bg-blue-100 text-blue-800 border border-blue-200">
+              ⚡ Hot/Cold Storage
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 mt-0.5">
+            লোকাল ভার্চুয়াল ডাটাবেজে সবসময় শুধুমাত্র রানিং মাসের ডাটা রাখা হয়। অতীত মাসগুলো গুগল শিট থেকে অন-ডিমান্ড লোড হয়।
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4 pt-1">
+          <button
+            type="button"
+            onClick={handleCleanVirtualDb}
+            disabled={cleaning || !gasUrl}
+            className="px-4 sm:px-5 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold text-xs rounded-xl flex items-center space-x-2 border border-blue-300 transition-all shadow-sm disabled:opacity-50"
+            title="গুগল শিটে ব্যাকআপ রেখে লোকাল মেমোরি হালকা রাখুন"
+          >
+            <Sparkles className={`w-4 h-4 ${cleaning ? 'animate-spin text-blue-600' : 'text-blue-700'}`} />
+            <span>{cleaning ? 'অপ্টিমাইজ হচ্ছে...' : '🧹 অতীত ডাটা ক্লিন করুন (Clean Virtual DB)'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleDownloadBackup}
+            disabled={downloading}
+            className="px-4 sm:px-5 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs rounded-xl flex items-center space-x-2 border border-emerald-300 transition-all shadow-sm disabled:opacity-50"
+            title="সম্পূর্ণ ডাটাবেজ JSON ফাইলে ডাউনলোড করুন"
+          >
+            <Download className={`w-4 h-4 ${downloading ? 'animate-bounce text-emerald-600' : 'text-emerald-700'}`} />
+            <span>{downloading ? 'ডাউনলোড হচ্ছে...' : '💾 সম্পূর্ণ ডাটাবেজ ব্যাকআপ (JSON)'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 4. Guide Card */}
       <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 text-xs text-slate-600 space-y-2">
         <h4 className="font-bold text-slate-800 text-sm">💡 গুগল অ্যাপস স্ক্রিপ্ট সেটআপ সংক্ষেপ:</h4>
         <p className="leading-relaxed">

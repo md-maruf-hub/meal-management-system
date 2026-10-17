@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server';
-import { getDatabase, saveDatabase } from '../../../lib/db';
+import { getDatabase, saveDatabase, getMonthScopedData } from '../../../lib/db';
 import { MealEntry } from '../../../lib/types';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const yearMonth = searchParams.get('yearMonth') || '2026-08';
+  const yearMonth = searchParams.get('yearMonth') || new Date().toISOString().substring(0, 7);
 
-  const db = await getDatabase();
-  const meals = db.meals.filter((m) => m.yearMonth === yearMonth);
-  return NextResponse.json({ meals });
+  const monthScoped = await getMonthScopedData(yearMonth);
+  return NextResponse.json({
+    meals: monthScoped.meals,
+    source: monthScoped.source,
+  });
 }
 
 export async function POST(request: Request) {

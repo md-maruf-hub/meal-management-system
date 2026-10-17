@@ -1,21 +1,24 @@
 import { NextResponse } from 'next/server';
-import { getDatabase, saveDatabase } from '../../../lib/db';
+import { getDatabase, saveDatabase, getMonthScopedData } from '../../../lib/db';
 import { BazarEntry, ExpenseItem } from '../../../lib/types';
 
 import { verifyToken } from '../../../lib/auth';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const yearMonth = searchParams.get('yearMonth') || '2026-08';
+  const yearMonth = searchParams.get('yearMonth') || new Date().toISOString().substring(0, 7);
 
-  const db = await getDatabase();
-  const bazarEntries = db.bazarEntries.filter((b) => b.yearMonth === yearMonth);
-  const expenses = db.expenses.filter((e) => e.yearMonth === yearMonth);
-  const members = (db.members || [])
+  const monthScoped = await getMonthScopedData(yearMonth);
+  const members = (monthScoped.members || [])
     .filter((m) => m.status === 'APPROVED' && m.role !== 'SUPER_ADMIN')
     .map((m) => ({ id: m.id, memberId: m.memberId, name: m.name, roomNo: m.roomNo }));
 
-  return NextResponse.json({ bazarEntries, expenses, members });
+  return NextResponse.json({
+    bazarEntries: monthScoped.bazarEntries,
+    expenses: monthScoped.expenses,
+    members,
+    source: monthScoped.source,
+  });
 }
 
 export async function POST(request: Request) {

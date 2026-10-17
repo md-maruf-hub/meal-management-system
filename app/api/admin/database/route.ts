@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
-import { getDatabase, saveDatabase, saveLocalDatabase, pullFromGoogleSheets, pushToGoogleSheets } from '../../../../lib/db';
+import { getDatabase, saveDatabase, saveLocalDatabase, pullFromGoogleSheets, pushToGoogleSheets, syncAndPruneMonthTransition } from '../../../../lib/db';
 import { getGasUrl, getGasKey } from '../../../../lib/db/google-sheets';
 import { verifyToken } from '../../../../lib/auth';
 import { comparePassword } from '../../../../lib/password';
@@ -83,6 +83,26 @@ export async function POST(request: Request) {
       return NextResponse.json({
         success: true,
         message: 'গুগল শিটে সম্পূর্ণ ডাটাবেজ সফলভাবে সিঙ্ক (Push) করা হয়েছে।',
+      });
+    }
+
+    // Action 3: Clean & optimize Virtual DB (Hot/Cold storage pruning)
+    if (body.action === 'clean-virtual-db') {
+      const { removedCount } = await syncAndPruneMonthTransition();
+      return NextResponse.json({
+        success: true,
+        message: `ভার্চুয়াল ডাটাবেজ সফলভাবে অপ্টিমাইজ করা হয়েছে। গুগল শিটে ব্যাকআপ নিশ্চিত করে ${removedCount}টি অতীত রেকর্ড লোকাল স্টোরেজ থেকে ক্লিন করা হয়েছে।`,
+        removedCount,
+      });
+    }
+
+    // Action 4: Disaster Recovery JSON Backup
+    if (body.action === 'backup') {
+      const db = await getDatabase();
+      return NextResponse.json({
+        success: true,
+        data: db,
+        timestamp: new Date().toISOString(),
       });
     }
 

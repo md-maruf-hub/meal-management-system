@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDatabase, saveDatabase } from '../../../../lib/db';
+import { getDatabase, saveDatabase, syncAndPruneMonthTransition } from '../../../../lib/db';
 import { MonthLock, AuditLog, MonthStatus } from '../../../../lib/types';
 
 export async function GET(request: Request) {
@@ -95,9 +95,21 @@ export async function POST(request: Request) {
     });
 
     await saveDatabase(db);
+
+    // If month was closed, ensure remote Google Sheet backup is finalized and prune virtual database
+    let pruneNotice = '';
+    if (newStatus === 'CLOSED') {
+      try {
+        const { removedCount } = await syncAndPruneMonthTransition();
+        pruneNotice = ` (গুগল শিটে ব্যাকআপ নিশ্চিত করা হয়েছে ও ভার্চুয়াল ডাটাবেজ থেকে ${removedCount}টি অতীত রেকর্ড অপ্টিমাইজ করা হয়েছে)`;
+      } catch (err) {
+        console.warn('Prune error after month close:', err);
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      message: `মাস ${yearMonth} সফলভাবে '${newStatus === 'CLOSED' ? 'লকড' : 'চালু'}' করা হয়েছে!`,
+      message: `মাস ${yearMonth} সফলভাবে '${newStatus === 'CLOSED' ? 'লকড / সমাপ্ত' : 'চালু'}' করা হয়েছে!${pruneNotice}`,
     });
   } catch (error) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

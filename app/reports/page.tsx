@@ -8,6 +8,7 @@ import { Printer, Download, ArrowLeft } from 'lucide-react';
 export default function MainReportPage() {
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().substring(0, 7));
   const [report, setReport] = useState<MonthlyReport | null>(null);
+  const [source, setSource] = useState<string>('VIRTUAL_DB');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -20,6 +21,7 @@ export default function MainReportPage() {
       const res = await fetch(`/api/reports?yearMonth=${selectedMonth}`);
       const data = await res.json();
       setReport(data.report || null);
+      if (data.source) setSource(data.source);
       setLoading(false);
     } catch (err) {
       setLoading(false);
@@ -132,9 +134,20 @@ export default function MainReportPage() {
               <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
                 মিল ম্যানেজমেন্ট সিস্টেম
               </h1>
-              <p className="text-xs sm:text-sm font-medium text-emerald-700 mt-1">
-                মাসিক মূল হিসাব ও সমন্বয় বিবরণী — {selectedMonth}
-              </p>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                <p className="text-xs sm:text-sm font-medium text-emerald-700">
+                  মাসিক মূল হিসাব ও সমন্বয় বিবরণী — {selectedMonth}
+                </p>
+                {source === 'GOOGLE_SHEET' ? (
+                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                    ☁️ গুগল শিট (সংরক্ষিত অতীত মাস)
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    ⚡ ভার্চুয়াল ডাটাবেজ (সক্রিয় মাস)
+                  </span>
+                )}
+              </div>
               {report?.assignedManagers && report.assignedManagers.length > 0 ? (
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   <span className="text-[11px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
