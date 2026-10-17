@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import Navbar from '../../components/layout/Navbar';
 import Sidebar from '../../components/layout/Sidebar';
 import { DashboardProvider, useDashboard } from '../../lib/DashboardContext';
+import TopProgressBar from '../../components/ui/TopProgressBar';
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
   const { user, selectedMonth, setSelectedMonth, effectiveRole, isLoading, assignedMonths } = useDashboard();
@@ -47,6 +48,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col">
+      <TopProgressBar isLoading={isLoading} />
       <Navbar
         user={user}
         selectedMonth={selectedMonth}

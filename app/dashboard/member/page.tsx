@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { MonthlyReport, MemberCalculation, MealEntry, AuditLog, BazarEntry, ExpenseItem, Deposit } from '../../../lib/types';
 import { useDashboard } from '../../../lib/DashboardContext';
+import DataLoader from '../../../components/ui/DataLoader';
 import {
   Utensils,
   Receipt,
@@ -120,7 +121,11 @@ export default function MemberDashboard() {
       </div>
 
       {loading ? (
-        <div className="p-12 text-center text-slate-500">ব্যক্তিগত হিসাব লোড হচ্ছে...</div>
+        <DataLoader
+          text="ব্যক্তিগত মিল ও মেস হিসাব লোড হচ্ছে..."
+          subtext="গুগল শিট থেকে আপনার মিল, বাজার ও জমার তথ্য সংগ্রহ করা হচ্ছে..."
+          variant="cards"
+        />
       ) : !memberData ? (
         <div className="p-8 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm flex items-center space-x-3">
           <ShieldAlert className="w-5 h-5 flex-shrink-0" />

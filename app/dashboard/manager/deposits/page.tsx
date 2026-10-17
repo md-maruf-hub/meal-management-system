@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Deposit, MemberCalculation, MonthlyReport } from '../../../../lib/types';
 import { useDashboard } from '../../../../lib/DashboardContext';
 import { DollarSign, Plus, Pencil, Trash2, Check, X, ShieldAlert, CheckCircle, ArrowRight, DollarSign as CashIcon } from 'lucide-react';
+import DataLoader from '../../../../components/ui/DataLoader';
 
 export default function DepositPage() {
   const { user, selectedMonth } = useDashboard();
@@ -12,6 +13,7 @@ export default function DepositPage() {
   const [monthStatus, setMonthStatus] = useState<'RUNNING' | 'CLOSED'>('RUNNING');
   const [monthManagerId, setMonthManagerId] = useState<string | null>(null);
   const [members, setMembers] = useState<Array<{ id: string; name: string; roomNo: string }>>([]);
+  const [loading, setLoading] = useState(true);
   
   // Deposit Form State
   const [memberId, setMemberId] = useState('');
@@ -37,6 +39,7 @@ export default function DepositPage() {
   }, [selectedMonth]);
 
   const fetchData = async () => {
+    setLoading(true);
     try {
       // 1. Fetch Month Lock Status
       const lockRes = await fetch(`/api/admin/lock-month`);
@@ -63,7 +66,10 @@ export default function DepositPage() {
       }));
       setMembers(memList);
       if (memList.length > 0) setMemberId(memList[0].id);
-    } catch (err) {}
+    } catch (err) {
+    } finally {
+      setLoading(false);
+    }
   };
 
   const isMonthManager = Boolean(
@@ -478,8 +484,10 @@ export default function DepositPage() {
             জমার খতিয়ান ও ইতিহাস ({selectedMonth})
           </div>
           <div className="divide-y divide-slate-100 text-sm">
-            {deposits.length === 0 ? (
-              <div className="p-8 text-center text-slate-500">No deposit records found for this month.</div>
+            {loading ? (
+              <DataLoader text="জমার খতিয়ান ও হিসাব লোড হচ্ছে..." variant="table" />
+            ) : deposits.length === 0 ? (
+              <div className="p-8 text-center text-slate-500">এই মাসে কোনো জমার রেকর্ড পাওয়া যায়নি।</div>
             ) : (
               deposits.map((d) => {
                 const member = members.find((m) => m.id === d.memberId);

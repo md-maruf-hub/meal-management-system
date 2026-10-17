@@ -5,6 +5,7 @@ import { MealEntry } from '../../../../lib/types';
 import { useDashboard } from '../../../../lib/DashboardContext';
 import { Save, Lock, CheckCircle, AlertCircle, Calendar, ChevronLeft, ChevronRight, Grid, List, Settings, Utensils } from 'lucide-react';
 import CookingBoard from '../../../../components/manager/CookingBoard';
+import DataLoader from '../../../../components/ui/DataLoader';
 
 interface DailyMemberMealState {
   memberId: string;
@@ -374,8 +375,16 @@ export default function DailyMealsMatrix() {
         </div>
       )}
 
-      {/* VIEW MODE 0: KITCHEN COOKING BOARD */}
-      {viewMode === 'COOKING_BOARD' && (
+      {loading ? (
+        <DataLoader
+          text="মিলের হিসাব ও রান্নার বোর্ড লোড হচ্ছে..."
+          subtext="গুগল শিট ও ডাটাবেজ থেকে সদস্যদের মিল ম্যাট্রিক্স সংগ্রহ করা হচ্ছে..."
+          variant="table"
+        />
+      ) : (
+        <>
+          {/* VIEW MODE 0: KITCHEN COOKING BOARD */}
+          {viewMode === 'COOKING_BOARD' && (
         <CookingBoard
           selectedMonth={selectedMonth}
           onSyncComplete={fetchData}
@@ -663,6 +672,8 @@ export default function DailyMealsMatrix() {
             </tfoot>
           </table>
         </div>
+      )}
+        </>
       )}
     </div>
   );

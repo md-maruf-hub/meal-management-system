@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { BazarEntry } from '../../../../lib/types';
 import { useDashboard } from '../../../../lib/DashboardContext';
 import { ShoppingBag, Plus, Pencil, Trash2, X, Check } from 'lucide-react';
+import DataLoader from '../../../../components/ui/DataLoader';
 
 export default function BazarPage() {
   const { user, selectedMonth } = useDashboard();
@@ -215,7 +216,9 @@ export default function BazarPage() {
             বাজার খরচের তালিকা ({selectedMonth})
           </div>
           <div className="divide-y divide-slate-100 text-sm">
-            {bazarEntries.length === 0 ? (
+            {loading ? (
+              <DataLoader text="বাজার খরচের তালিকা লোড হচ্ছে..." variant="table" />
+            ) : bazarEntries.length === 0 ? (
               <div className="p-8 text-center text-slate-500">এই মাসে কোনো বাজার খরচের রেকর্ড পাওয়া যায়নি।</div>
             ) : (
               bazarEntries.map((b) => (

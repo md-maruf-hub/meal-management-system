@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Member, MonthlyReport } from '../../../lib/types';
 import { useDashboard } from '../../../lib/DashboardContext';
 import { Shield, UserCheck, Lock, ArrowRight, CheckCircle, Trash2, Database } from 'lucide-react';
+import DataLoader from '../../../components/ui/DataLoader';
 
 export default function AdminDashboard() {
   const { user, selectedMonth } = useDashboard();
@@ -176,7 +177,7 @@ export default function AdminDashboard() {
 
         <div className="divide-y divide-slate-100 text-sm">
           {loadingMembers ? (
-            <div className="p-12 text-center text-slate-500">সদস্য তালিকা লোড হচ্ছে...</div>
+            <DataLoader text="মেসের সদস্য তালিকা ও রোল লোড হচ্ছে..." variant="cards" />
           ) : members.length === 0 ? (
             <div className="p-8 text-center text-slate-500">কোনো সক্রিয় সদস্য পাওয়া যায়নি।</div>
           ) : (

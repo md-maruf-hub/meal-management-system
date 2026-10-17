@@ -269,6 +269,16 @@ export default function ManagerTotalReportPage() {
         </div>
       </div>
 
+      {loading && (
+        <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold rounded-2xl flex items-center justify-between shadow-sm animate-pulse">
+          <div className="flex items-center space-x-2.5">
+            <RefreshCw className="w-4 h-4 animate-spin text-emerald-600 flex-shrink-0" />
+            <span>মাসিক হিসাব ও রিপোর্ট লোড হচ্ছে...</span>
+          </div>
+          <span className="text-[11px] text-emerald-600 font-medium hidden sm:inline">গুগল শিট থেকে ডাটা সিঙ্ক হচ্ছে</span>
+        </div>
+      )}
+
       {/* Month Status & Quick Shortcuts Banner */}
       <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center space-x-3">
