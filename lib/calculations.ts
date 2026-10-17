@@ -17,29 +17,33 @@ export function calculateMonthlyReport(
   assignedManagers?: MonthManagerInfo[]
 ): MonthlyReport {
   // Active members for a month include:
-  // 1. Members who had meals or deposits in that specific yearMonth (historical activity)
+  // 1. Members who had meals, deposits, or expenses in that specific yearMonth (historical ground truth)
   // 2. Or members who joined on/before this month, are APPROVED, and did not take a full-month leave (if month already has recorded meals)
+  const isMemberMatch = (recordMemberId: string, m: Member) =>
+    recordMemberId === m.id || (Boolean(m.memberId) && recordMemberId === m.memberId);
+
   const activeMembers = members.filter((m) => {
     if (m.role === 'SUPER_ADMIN') return false;
 
-    // A member cannot be active before their join month
-    const joinYM = m.joinDate ? m.joinDate.substring(0, 7) : '';
-    if (joinYM && joinYM > yearMonth) {
-      return false;
-    }
-
+    // 1. Historical Activity: If the member has recorded meals, deposits, or expenses in this month, they are ALWAYS active
     const hasMealsInMonth = meals.some(
-      (meal) => meal.memberId === m.id && meal.yearMonth === yearMonth && meal.mealCount > 0
+      (meal) => isMemberMatch(meal.memberId, m) && meal.yearMonth === yearMonth && meal.mealCount > 0
     );
     const hasDepositsInMonth = deposits.some(
-      (dep) => dep.memberId === m.id && dep.yearMonth === yearMonth && dep.amount > 0
+      (dep) => isMemberMatch(dep.memberId, m) && dep.yearMonth === yearMonth && dep.amount > 0
     );
     const hasExpensesInMonth = expenses.some(
-      (exp) => exp.memberId === m.id && exp.yearMonth === yearMonth && exp.amount > 0
+      (exp) => exp.memberId && isMemberMatch(exp.memberId, m) && exp.yearMonth === yearMonth && exp.amount > 0
     );
 
     if (hasMealsInMonth || hasDepositsInMonth || hasExpensesInMonth) {
       return true;
+    }
+
+    // A member cannot be active before their join month (if no historical activity exists)
+    const joinYM = m.joinDate ? m.joinDate.substring(0, 7) : '';
+    if (joinYM && joinYM > yearMonth) {
+      return false;
     }
 
     // A member who left in a prior month cannot be active in a future month
@@ -65,9 +69,14 @@ export function calculateMonthlyReport(
   const activeCount = activeMembers.length || 1;
 
   // 1. Total Meals
-  const activeMemberIds = new Set(activeMembers.map((m) => m.id));
+  const activeMemberIdSet = new Set<string>();
+  activeMembers.forEach((m) => {
+    if (m.id) activeMemberIdSet.add(m.id);
+    if (m.memberId) activeMemberIdSet.add(m.memberId);
+  });
+
   const monthMeals = meals.filter(
-    (m) => m.yearMonth === yearMonth && activeMemberIds.has(m.memberId)
+    (m) => m.yearMonth === yearMonth && activeMemberIdSet.has(m.memberId)
   );
   const totalMeals = roundDecimal(
     monthMeals.reduce((sum, m) => sum + (m.mealCount || 0), 0),
@@ -93,11 +102,11 @@ export function calculateMonthlyReport(
   const getExpensesByCategory = (category: string) =>
     monthExpenses.filter((e) => e.category === category);
 
-  const calculateMemberUtilityCost = (category: string, memberId: string): number => {
+  const calculateMemberUtilityCost = (category: string, member: Member): number => {
     const items = getExpensesByCategory(category);
     
     const directCost = items
-      .filter((item) => item.memberId === memberId)
+      .filter((item) => item.memberId && isMemberMatch(item.memberId, member))
       .reduce((sum, item) => sum + (item.amount || 0), 0);
 
     const sharedCost = items
@@ -118,7 +127,7 @@ export function calculateMonthlyReport(
   let overallGive = 0;
 
   const memberCalculations: MemberCalculation[] = activeMembers.map((member) => {
-    const memberMealEntries = monthMeals.filter((m) => m.memberId === member.id);
+    const memberMealEntries = monthMeals.filter((m) => isMemberMatch(m.memberId, member));
     const memberMealCount = roundDecimal(
       memberMealEntries.reduce((sum, m) => sum + (m.mealCount || 0), 0),
       1
@@ -126,10 +135,10 @@ export function calculateMonthlyReport(
 
     const mealCost = roundDecimal(memberMealCount * millRate, 3);
 
-    const khalaBill = calculateMemberUtilityCost('KHALA_BILL', member.id);
-    const gasBill = calculateMemberUtilityCost('GAS_BILL', member.id);
-    const extraCost = calculateMemberUtilityCost('EXTRA_COST', member.id);
-    const fridgeBill = calculateMemberUtilityCost('FRIDGE_BILL', member.id);
+    const khalaBill = calculateMemberUtilityCost('KHALA_BILL', member);
+    const gasBill = calculateMemberUtilityCost('GAS_BILL', member);
+    const extraCost = calculateMemberUtilityCost('EXTRA_COST', member);
+    const fridgeBill = calculateMemberUtilityCost('FRIDGE_BILL', member);
 
     const totalCost = roundDecimal(
       mealCost + khalaBill + gasBill + extraCost + fridgeBill,
@@ -139,7 +148,7 @@ export function calculateMonthlyReport(
     const memberDepositEntries = deposits.filter(
       (d) =>
         d.yearMonth === yearMonth &&
-        d.memberId === member.id
+        isMemberMatch(d.memberId, member)
     );
     const depositAmount = roundDecimal(
       memberDepositEntries.reduce((sum, d) => sum + (d.amount || 0), 0),
@@ -157,7 +166,7 @@ export function calculateMonthlyReport(
 
     // Check settlements for this member in this month
     const memberSettlements = settlements.filter(
-      (s) => s.memberId === member.id && s.yearMonth === yearMonth
+      (s) => isMemberMatch(s.memberId, member) && s.yearMonth === yearMonth
     );
     const settledAmount = roundDecimal(
       memberSettlements.reduce((sum, s) => sum + (s.amount || 0), 0),

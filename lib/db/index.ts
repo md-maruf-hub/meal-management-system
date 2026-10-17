@@ -76,6 +76,9 @@ export function pruneVirtualDatabase(db: DatabaseSchema): { db: DatabaseSchema; 
   db.settlements = (db.settlements || []).filter((s) => activeMonths.has(s.yearMonth));
   db.mealRequests = (db.mealRequests || []).filter((mr) => activeMonths.has(mr.yearMonth));
   db.dailyMealLocks = (db.dailyMealLocks || []).filter((dml) => activeMonths.has(dml.yearMonth));
+  if (Array.isArray(db.auditLogs) && db.auditLogs.length > 50) {
+    db.auditLogs = db.auditLogs.slice(-50);
+  }
 
   const finalCount =
     (db.meals?.length || 0) +
