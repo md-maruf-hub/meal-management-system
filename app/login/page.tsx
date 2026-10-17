@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Lock, Phone, ArrowRight, Mail, KeyRound, CheckCircle, X } from 'lucide-react';
+import Logo from '../../components/ui/Logo';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -116,9 +117,9 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-slate-800 border border-slate-700 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
-        <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-slate-900 font-extrabold text-2xl flex items-center justify-center mx-auto shadow-lg">
-            ম
+        <div className="text-center space-y-3">
+          <div className="flex justify-center">
+            <Logo size="xl" showText={false} />
           </div>
           <h2 className="text-2xl font-bold text-white tracking-tight">মিল ম্যানেজমেন্ট সিস্টেম</h2>
           <p className="text-xs text-slate-400">মেম্বার আইডি, ফোন নম্বর অথবা নিবন্ধিত ইমেইল দিয়ে প্রবেশ করুন</p>

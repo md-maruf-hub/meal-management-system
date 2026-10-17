@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { User, Phone, Home, Mail, Lock, PhoneCall, CheckCircle } from 'lucide-react';
+import Logo from '../../components/ui/Logo';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -55,7 +56,10 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
       <div className="max-w-lg w-full bg-slate-800 border border-slate-700 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
-        <div className="text-center space-y-2">
+        <div className="text-center space-y-3">
+          <div className="flex justify-center">
+            <Logo size="lg" showText={false} />
+          </div>
           <h2 className="text-2xl font-bold text-white tracking-tight">নতুন সদস্য নিবন্ধন</h2>
           <p className="text-sm text-slate-400">মেস মেম্বারশিপের জন্য নিচের তথ্যগুলো পূরণ করুন</p>
         </div>

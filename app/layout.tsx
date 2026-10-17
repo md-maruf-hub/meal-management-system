@@ -4,6 +4,11 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'মিল ম্যানেজমেন্ট সিস্টেম - মেস হিসাব পোর্টাল',
   description: 'মেস মিল ম্যানেজমেন্ট সিস্টেম - রিয়েল-টাইম মিল হিসাব, বাজার খরচ, ডিপোজিট ও মাসিক প্রতিবেদন।',
+  icons: {
+    icon: '/icon.svg',
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
+  },
 };
 
 export default function RootLayout({

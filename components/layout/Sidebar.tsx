@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { UserRole } from '../../lib/types';
 import { useDashboard } from '../../lib/DashboardContext';
+import Logo from '../ui/Logo';
 
 interface SidebarProps {
   role: UserRole;
@@ -50,10 +51,8 @@ export default function Sidebar({ role, isMobileOpen = false, onCloseMobile }: S
     <div className="space-y-6">
       {/* Mobile Drawer Header */}
       <div className="md:hidden flex items-center justify-between pb-4 border-b border-slate-800">
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center text-slate-900 font-bold">
-            ম
-          </div>
+        <div className="flex items-center space-x-2.5">
+          <Logo size="sm" showText={false} />
           <span className="font-bold text-white text-base">মিল ম্যানেজমেন্ট</span>
         </div>
         <button onClick={onCloseMobile} className="p-1.5 text-slate-400 hover:text-white">

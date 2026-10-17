@@ -7,6 +7,7 @@ import { LogOut, Calendar, Menu, X } from 'lucide-react';
 import { AuthSession } from '../../lib/types';
 
 import { useDashboard } from '../../lib/DashboardContext';
+import Logo from '../ui/Logo';
 
 interface NavbarProps {
   user: AuthSession['user'] | null;
@@ -48,11 +49,9 @@ export default function Navbar({
             {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
 
-          <Link href="/dashboard" className="flex items-center space-x-2">
-            <div className="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-bold text-lg shadow">
-              ম
-            </div>
-            <span className="font-bold text-slate-800 text-lg sm:inline">
+          <Link href="/dashboard" className="flex items-center space-x-2.5 group">
+            <Logo size="sm" showText={false} />
+            <span className="font-bold text-slate-800 text-lg group-hover:text-emerald-700 transition-colors">
               মিল ম্যানেজমেন্ট
             </span>
           </Link>
