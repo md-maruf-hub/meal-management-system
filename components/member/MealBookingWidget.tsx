@@ -14,11 +14,7 @@ import {
   Coffee,
   Sun,
   Moon,
-  Sparkles,
-  ChevronLeft,
-  ChevronRight,
   Info,
-  RotateCcw,
 } from 'lucide-react';
 
 interface MealBookingWidgetProps {
@@ -63,14 +59,6 @@ export default function MealBookingWidget({ selectedMonth }: MealBookingWidgetPr
     return today;
   });
 
-  // Strip start date (the first day shown in the 7-day pill row)
-  const [stripStartDate, setStripStartDate] = useState<string>(() => {
-    if (selectedMonth && !today.startsWith(selectedMonth)) {
-      return `${selectedMonth}-01`;
-    }
-    return today;
-  });
-
   const [breakfast, setBreakfast] = useState(true);
   const [lunch, setLunch] = useState(true);
   const [dinner, setDinner] = useState(true);
@@ -97,26 +85,15 @@ export default function MealBookingWidget({ selectedMonth }: MealBookingWidgetPr
       if (today.startsWith(selectedMonth)) {
         if (!targetDate.startsWith(selectedMonth)) {
           setTargetDate(today);
-          setStripStartDate(today);
         }
       } else {
         const firstDayOfMonth = `${selectedMonth}-01`;
         if (!targetDate.startsWith(selectedMonth)) {
           setTargetDate(firstDayOfMonth);
-          setStripStartDate(firstDayOfMonth);
         }
       }
     }
   }, [selectedMonth]);
-
-  // Ensure stripStartDate encompasses targetDate whenever targetDate changes
-  useEffect(() => {
-    if (!targetDate) return;
-    const stripEndDate = addDaysToDateStr(stripStartDate, 6);
-    if (targetDate < stripStartDate || targetDate > stripEndDate) {
-      setStripStartDate(targetDate);
-    }
-  }, [targetDate, stripStartDate]);
 
   // Fetch status whenever targetDate changes
   useEffect(() => {
@@ -273,7 +250,7 @@ export default function MealBookingWidget({ selectedMonth }: MealBookingWidgetPr
     }
   };
 
-  // Format date to Bengali long string cleanly without timezone drift
+  // Format date to Bengali long string
   const formatBengaliDate = (dateStr: string) => {
     if (!dateStr) return '';
     try {
@@ -289,64 +266,29 @@ export default function MealBookingWidget({ selectedMonth }: MealBookingWidgetPr
     }
   };
 
-  // Generate 7 consecutive days starting from stripStartDate
-  const getVisibleStripDays = () => {
-    const days = [];
-    for (let i = 0; i < 7; i++) {
-      const curDateStr = addDaysToDateStr(stripStartDate, i);
-      const d = parseLocalDate(curDateStr);
-      const dayNum = d.getDate();
-      let dayLabel = d.toLocaleDateString('bn-BD', { weekday: 'short' });
-
-      if (curDateStr === today) {
-        dayLabel = 'আজ';
-      } else if (curDateStr === tomorrow) {
-        dayLabel = 'আগামীকাল';
-      } else if (curDateStr === addDaysToDateStr(today, -1)) {
-        dayLabel = 'গতকাল';
-      }
-
-      const isPast = curDateStr < today;
-      const isCurrentToday = curDateStr === today;
-      const monthLabel = d.toLocaleDateString('bn-BD', { month: 'short' });
-
-      days.push({
-        dateStr: curDateStr,
-        dayNum,
-        dayLabel,
-        isPast,
-        isCurrentToday,
-        monthLabel,
+  const formatShortBengaliDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    try {
+      const d = parseLocalDate(dateStr);
+      return d.toLocaleDateString('bn-BD', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
       });
+    } catch (e) {
+      return dateStr;
     }
-    return days;
   };
 
-  const visibleDays = getVisibleStripDays();
+  const isToday = targetDate === today;
+  const isTomorrow = targetDate === tomorrow;
+  const isCustomDate = !isToday && !isTomorrow;
 
-  // Strip navigation handlers
-  const handlePrevDays = () => {
-    setStripStartDate((prev) => addDaysToDateStr(prev, -7));
-  };
-
-  const handleNextDays = () => {
-    setStripStartDate((prev) => addDaysToDateStr(prev, 7));
-  };
-
-  const handleResetToToday = () => {
-    setTargetDate(today);
-    setStripStartDate(today);
-  };
-
-  const handleJumpToTomorrow = () => {
-    setTargetDate(tomorrow);
-    setStripStartDate(today);
-  };
-
-  // Calculate day total
+  // Calculate day total & meal units
   const memberMealTotal = (breakfast ? 0.5 : 0) + (lunch ? 1.0 : 0) + (dinner ? 1.0 : 0);
-  const totalGuestMeal = guestBreakfast + guestLunch + guestDinner;
-  const dayGrandTotal = memberMealTotal + totalGuestMeal;
+  const guestMealUnits = (guestBreakfast * 0.5) + (guestLunch * 1.0) + (guestDinner * 1.0);
+  const totalGuestCount = guestBreakfast + guestLunch + guestDinner;
+  const dayGrandTotal = memberMealTotal + guestMealUnits;
 
   return (
     <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden space-y-6">
@@ -362,7 +304,7 @@ export default function MealBookingWidget({ selectedMonth }: MealBookingWidgetPr
             </h3>
           </div>
           <p className="text-xs text-slate-300">
-            আগাম জানিয়ে দিন আপনি কোন বেলায় খাবেন। রান্নার বাজার ও প্রস্তুতির আগে পরিবর্তনযোগ্য।
+            আজ ও আগামীকালের মিল আগে থেকেই জানিয়ে দিন। রান্নার বাজার ও প্রস্তুতির আগে পরিবর্তনযোগ্য।
           </p>
         </div>
 
@@ -389,118 +331,146 @@ export default function MealBookingWidget({ selectedMonth }: MealBookingWidgetPr
       </div>
 
       <div className="px-5 sm:px-8 pb-8 space-y-6">
-        {/* 2. Interactive 7-Day Quick Strip with Navigation */}
-        <div className="space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+        {/* 2. Streamlined Date Selection: Today, Tomorrow & Custom Date */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs">
             <span className="font-bold text-slate-700 flex items-center gap-1.5">
               <CalendarIcon className="w-4 h-4 text-emerald-600" />
-              <span>তারিখ নির্বাচন করুন (৭ দিনের কুইক স্ট্রিপ):</span>
+              <span>তারিখ নির্বাচন করুন:</span>
             </span>
-
-            {/* Quick jump actions & Strip navigation */}
-            <div className="flex items-center space-x-1.5">
-              <button
-                type="button"
-                onClick={handleResetToToday}
-                className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 cursor-pointer ${
-                  targetDate === today
-                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
-                }`}
-                title="আজকের তারিখে যান"
-              >
-                <span>আজ</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleJumpToTomorrow}
-                className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 cursor-pointer ${
-                  targetDate === tomorrow
-                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
-                }`}
-                title="আগামীকালের তারিখে যান"
-              >
-                <span>আগামীকাল</span>
-              </button>
-
-              <div className="h-4 w-px bg-slate-200 mx-1"></div>
-
-              <button
-                type="button"
-                onClick={handlePrevDays}
-                className="p-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors cursor-pointer"
-                title="পূর্ববর্তী ৭ দিন"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-
-              <button
-                type="button"
-                onClick={handleNextDays}
-                className="p-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors cursor-pointer"
-                title="পরবর্তী ৭ দিন"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
+            <span className="text-slate-400 font-medium">আজ ও আগামীকালের মিল দ্রুত পরিবর্তন করুন</span>
           </div>
 
-          {/* 7-Day Pills Grid */}
-          <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
-            {visibleDays.map((d) => {
-              const isSelected = d.dateStr === targetDate;
-              return (
-                <button
-                  key={d.dateStr}
-                  type="button"
-                  onClick={() => setTargetDate(d.dateStr)}
-                  className={`p-2.5 sm:p-3 rounded-2xl border text-center transition-all cursor-pointer relative overflow-hidden ${
-                    isSelected
-                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20 scale-[1.02] ring-2 ring-emerald-400/50'
-                      : d.isCurrentToday
-                      ? 'bg-emerald-50 text-emerald-900 border-emerald-300 hover:bg-emerald-100/80'
-                      : d.isPast
-                      ? 'bg-slate-50/70 hover:bg-slate-100 text-slate-500 border-slate-200'
-                      : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Card 1: Today */}
+            <button
+              type="button"
+              onClick={() => setTargetDate(today)}
+              className={`p-4 rounded-2xl border text-left transition-all cursor-pointer relative ${
+                isToday
+                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20 scale-[1.01] ring-2 ring-emerald-400/40'
+                  : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span
+                  className={`text-xs font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                    isToday ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'
                   }`}
                 >
-                  <span
-                    className={`text-[10px] font-extrabold block uppercase tracking-wider ${
-                      isSelected
-                        ? 'text-emerald-100'
-                        : d.isCurrentToday
-                        ? 'text-emerald-700 font-black'
-                        : 'text-slate-500'
-                    }`}
-                  >
-                    {d.dayLabel}
+                  আজকের খাবার
+                </span>
+                {isToday && <CheckCircle className="w-4 h-4 text-white" />}
+              </div>
+              <div className="mt-2.5">
+                <span className={`text-base sm:text-lg font-black block ${isToday ? 'text-white' : 'text-slate-900'}`}>
+                  {formatShortBengaliDate(today)}
+                </span>
+                <span className={`text-[11px] font-semibold ${isToday ? 'text-emerald-100' : 'text-slate-500'}`}>
+                  {today}
+                </span>
+              </div>
+            </button>
+
+            {/* Card 2: Tomorrow */}
+            <button
+              type="button"
+              onClick={() => setTargetDate(tomorrow)}
+              className={`p-4 rounded-2xl border text-left transition-all cursor-pointer relative ${
+                isTomorrow
+                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20 scale-[1.01] ring-2 ring-emerald-400/40'
+                  : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span
+                  className={`text-xs font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                    isTomorrow ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-800'
+                  }`}
+                >
+                  আগামীকালের খাবার
+                </span>
+                {isTomorrow && <CheckCircle className="w-4 h-4 text-white" />}
+              </div>
+              <div className="mt-2.5">
+                <span className={`text-base sm:text-lg font-black block ${isTomorrow ? 'text-white' : 'text-slate-900'}`}>
+                  {formatShortBengaliDate(tomorrow)}
+                </span>
+                <span className={`text-[11px] font-semibold ${isTomorrow ? 'text-emerald-100' : 'text-slate-500'}`}>
+                  {tomorrow}
+                </span>
+              </div>
+            </button>
+
+            {/* Card 3: Custom Date Picker */}
+            <div
+              className={`p-4 rounded-2xl border transition-all relative flex flex-col justify-between ${
+                isCustomDate
+                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20 ring-2 ring-emerald-400/40'
+                  : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span
+                  className={`text-xs font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                    isCustomDate ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                  }`}
+                >
+                  {isCustomDate ? 'অন্য নির্বাচিত তারিখ' : 'অন্য তারিখ নির্বাচন'}
+                </span>
+                <CalendarIcon className={`w-4 h-4 ${isCustomDate ? 'text-white' : 'text-slate-400'}`} />
+              </div>
+
+              <div className="mt-2">
+                {isCustomDate ? (
+                  <span className="text-base sm:text-lg font-black block text-white truncate">
+                    {formatShortBengaliDate(targetDate)}
                   </span>
-                  <span
-                    className={`text-base sm:text-lg font-black block mt-0.5 ${
-                      isSelected ? 'text-white' : d.isCurrentToday ? 'text-emerald-900' : 'text-slate-800'
-                    }`}
-                  >
-                    {d.dayNum}
+                ) : (
+                  <span className="text-[11px] text-slate-500 block truncate">
+                    প্রয়োজনে নির্দিষ্ট তারিখ বেছে নিন
                   </span>
-                  <span
-                    className={`text-[9px] font-bold block -mt-0.5 ${
-                      isSelected ? 'text-emerald-200' : 'text-slate-400'
+                )}
+                <div className="mt-1.5">
+                  <input
+                    type="date"
+                    value={targetDate}
+                    onChange={(e) => {
+                      if (e.target.value) setTargetDate(e.target.value);
+                    }}
+                    onClick={(e) => {
+                      try {
+                        (e.target as HTMLInputElement).showPicker?.();
+                      } catch (_) {}
+                    }}
+                    className={`w-full text-xs font-bold px-2 py-1 rounded-xl border focus:outline-none cursor-pointer [color-scheme:light] ${
+                      isCustomDate
+                        ? 'bg-white text-slate-900 border-white'
+                        : 'bg-white text-slate-800 border-slate-300'
                     }`}
-                  >
-                    {d.monthLabel}
-                  </span>
-                </button>
-              );
-            })}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* 3. Selected Date & Lock Status Banner */}
         <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="space-y-0.5">
-            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">নির্বাচিত তারিখ</span>
+            <div className="flex items-center space-x-2">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">নির্বাচিত তারিখ</span>
+              {isToday && (
+                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-extrabold rounded-md">
+                  আজ
+                </span>
+              )}
+              {isTomorrow && (
+                <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-[10px] font-extrabold rounded-md">
+                  আগামীকাল
+                </span>
+              )}
+            </div>
             <h4 className="text-base sm:text-lg font-black text-slate-900">{formatBengaliDate(targetDate)}</h4>
           </div>
 
@@ -648,7 +618,7 @@ export default function MealBookingWidget({ selectedMonth }: MealBookingWidgetPr
               <div className="pt-2 flex items-center justify-between bg-white/70 p-3 rounded-2xl border border-slate-200/80">
                 <div>
                   <span className="text-xs font-bold text-slate-800 block">সকালে মেহমান মিল</span>
-                  <span className="text-[11px] text-slate-500">গেস্ট নাস্তা সংখ্যা</span>
+                  <span className="text-[11px] text-slate-500">গেস্ট নাস্তা সংখ্যা (০.৫ ইউনিট)</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <button
@@ -738,7 +708,7 @@ export default function MealBookingWidget({ selectedMonth }: MealBookingWidgetPr
               <div className="pt-2 flex items-center justify-between bg-white/70 p-3 rounded-2xl border border-slate-200/80">
                 <div>
                   <span className="text-xs font-bold text-slate-800 block">দুপুরে মেহমান মিল</span>
-                  <span className="text-[11px] text-slate-500">গেস্ট লাঞ্চ সংখ্যা</span>
+                  <span className="text-[11px] text-slate-500">গেস্ট লাঞ্চ সংখ্যা (১.০ ইউনিট)</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <button
@@ -828,7 +798,7 @@ export default function MealBookingWidget({ selectedMonth }: MealBookingWidgetPr
               <div className="pt-2 flex items-center justify-between bg-white/70 p-3 rounded-2xl border border-slate-200/80">
                 <div>
                   <span className="text-xs font-bold text-slate-800 block">রাতে মেহমান মিল</span>
-                  <span className="text-[11px] text-slate-500">গেস্ট ডিনার সংখ্যা</span>
+                  <span className="text-[11px] text-slate-500">গেস্ট ডিনার সংখ্যা (১.০ ইউনিট)</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <button
@@ -864,25 +834,27 @@ export default function MealBookingWidget({ selectedMonth }: MealBookingWidgetPr
           </div>
 
           {/* 6. Real-Time Daily Meal Calculation Ribbon */}
-          <div className="p-4 bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 rounded-2xl border border-emerald-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-            <div className="flex items-center space-x-3">
-              <span className="p-2.5 bg-emerald-600 text-white rounded-xl shadow-sm">
+          <div className="p-4 sm:p-5 bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 rounded-2xl border border-emerald-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs shadow-sm">
+            <div className="flex items-center space-x-3.5">
+              <span className="p-2.5 bg-emerald-600 text-white rounded-xl shadow-sm shrink-0">
                 <UserCheck className="w-5 h-5" />
               </span>
               <div>
-                <span className="font-extrabold text-slate-900 text-sm block">
-                  এই দিনের মোট মিল: <span className="text-emerald-700 font-mono text-base">{dayGrandTotal} টি</span>
+                <span className="font-extrabold text-slate-900 text-sm sm:text-base block">
+                  এই দিনের মোট মিল: <span className="text-emerald-700 font-black font-mono text-base sm:text-lg">{dayGrandTotal} টি</span>
                 </span>
-                <span className="text-slate-600 font-medium">
-                  আপনার নিজস্ব মিল: {memberMealTotal} টি • মোট মেহমান মিল: {totalGuestMeal} টি
-                  (সকালে {guestBreakfast} | দুপুরে {guestLunch} | রাতে {guestDinner})
+                <span className="text-slate-600 font-medium block mt-0.5">
+                  আপনার নিজস্ব মিল: <span className="font-bold text-slate-800">{memberMealTotal} টি</span> • মোট মেহমান মিল: <span className="font-bold text-slate-800">{guestMealUnits} টি</span>
+                  {totalGuestCount > 0 && (
+                    <span className="text-slate-500"> (সকালে {guestBreakfast} | দুপুরে {guestLunch} | রাতে {guestDinner})</span>
+                  )}
                 </span>
               </div>
             </div>
 
-            {totalGuestMeal > 0 && (
-              <span className="px-3 py-1 bg-emerald-600 text-white font-extrabold rounded-full text-xs shadow-sm self-start sm:self-auto">
-                +{totalGuestMeal} টি গেস্ট মিল যুক্ত
+            {guestMealUnits > 0 && (
+              <span className="px-3 py-1.5 bg-emerald-600 text-white font-extrabold rounded-full text-xs shadow-sm self-start sm:self-auto shrink-0 flex items-center gap-1">
+                +{guestMealUnits} টি গেস্ট মিল যুক্ত
               </span>
             )}
           </div>
