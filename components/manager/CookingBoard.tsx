@@ -28,20 +28,52 @@ interface CookingBoardProps {
   onSyncComplete?: () => void;
 }
 
-export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingBoardProps) {
-  const getTodayStr = () => new Date().toISOString().split('T')[0];
-  const getTomorrowStr = () => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return d.toISOString().split('T')[0];
-  };
+// Timezone-safe local date formatter (YYYY-MM-DD) avoiding UTC skew
+const getLocalDateStr = (d: Date = new Date()): string => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
-  const today = getTodayStr();
-  const tomorrow = getTomorrowStr();
+const parseLocalDate = (dateStr: string): Date => {
+  if (!dateStr) return new Date();
+  const parts = dateStr.split('-').map(Number);
+  if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+    return new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
+  }
+  return new Date();
+};
+
+const addDaysToDateStr = (dateStr: string, days: number): string => {
+  const d = parseLocalDate(dateStr);
+  d.setDate(d.getDate() + days);
+  return getLocalDateStr(d);
+};
+
+export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingBoardProps) {
+  const today = getLocalDateStr();
+  const tomorrow = addDaysToDateStr(today, 1);
 
   const [date, setDate] = useState<string>(() => {
     return today.startsWith(selectedMonth) ? today : `${selectedMonth}-01`;
   });
+
+  // Keep date synced with selectedMonth if changed from dashboard header
+  useEffect(() => {
+    if (selectedMonth) {
+      if (today.startsWith(selectedMonth)) {
+        if (!date.startsWith(selectedMonth)) {
+          setDate(today);
+        }
+      } else {
+        const firstDayOfMonth = `${selectedMonth}-01`;
+        if (!date.startsWith(selectedMonth)) {
+          setDate(firstDayOfMonth);
+        }
+      }
+    }
+  }, [selectedMonth]);
 
   const [data, setData] = useState<any>(null);
   const [membersState, setMembersState] = useState<any[]>([]);
@@ -644,8 +676,10 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
               <input
                 type="date"
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="bg-slate-900 text-white text-xs px-3 py-2 rounded-xl border border-slate-700 focus:outline-none focus:border-emerald-400 cursor-pointer font-medium"
+                onChange={(e) => {
+                  if (e.target.value) setDate(e.target.value);
+                }}
+                className="bg-slate-900 text-white text-xs px-3 py-2 rounded-xl border border-slate-700 focus:outline-none focus:border-emerald-400 cursor-pointer font-medium [color-scheme:dark]"
               />
             </div>
 

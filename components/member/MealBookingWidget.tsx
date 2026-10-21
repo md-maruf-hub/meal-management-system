@@ -18,6 +18,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Info,
+  RotateCcw,
 } from 'lucide-react';
 
 interface MealBookingWidgetProps {
@@ -25,18 +26,51 @@ interface MealBookingWidgetProps {
   selectedMonth: string;
 }
 
+// Timezone-safe local date formatter (YYYY-MM-DD) avoiding UTC skew
+const getLocalDateStr = (d: Date = new Date()): string => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+// Safe local date parser using noon time to avoid DST / timezone boundary issues
+const parseLocalDate = (dateStr: string): Date => {
+  if (!dateStr) return new Date();
+  const parts = dateStr.split('-').map(Number);
+  if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+    return new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
+  }
+  return new Date();
+};
+
+// Safe day adder returning YYYY-MM-DD
+const addDaysToDateStr = (dateStr: string, days: number): string => {
+  const d = parseLocalDate(dateStr);
+  d.setDate(d.getDate() + days);
+  return getLocalDateStr(d);
+};
+
 export default function MealBookingWidget({ selectedMonth }: MealBookingWidgetProps) {
-  const getTodayStr = () => new Date().toISOString().split('T')[0];
-  const getTomorrowStr = () => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return d.toISOString().split('T')[0];
-  };
+  const today = getLocalDateStr();
+  const tomorrow = addDaysToDateStr(today, 1);
 
-  const today = getTodayStr();
-  const tomorrow = getTomorrowStr();
+  // Target date initialized safely
+  const [targetDate, setTargetDate] = useState<string>(() => {
+    if (selectedMonth && !today.startsWith(selectedMonth)) {
+      return `${selectedMonth}-01`;
+    }
+    return today;
+  });
 
-  const [targetDate, setTargetDate] = useState<string>(today);
+  // Strip start date (the first day shown in the 7-day pill row)
+  const [stripStartDate, setStripStartDate] = useState<string>(() => {
+    if (selectedMonth && !today.startsWith(selectedMonth)) {
+      return `${selectedMonth}-01`;
+    }
+    return today;
+  });
+
   const [breakfast, setBreakfast] = useState(true);
   const [lunch, setLunch] = useState(true);
   const [dinner, setDinner] = useState(true);
@@ -57,11 +91,42 @@ export default function MealBookingWidget({ selectedMonth }: MealBookingWidgetPr
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // Sync with selectedMonth from parent dashboard if changed
   useEffect(() => {
-    fetchStatusForDate(targetDate);
+    if (selectedMonth) {
+      if (today.startsWith(selectedMonth)) {
+        if (!targetDate.startsWith(selectedMonth)) {
+          setTargetDate(today);
+          setStripStartDate(today);
+        }
+      } else {
+        const firstDayOfMonth = `${selectedMonth}-01`;
+        if (!targetDate.startsWith(selectedMonth)) {
+          setTargetDate(firstDayOfMonth);
+          setStripStartDate(firstDayOfMonth);
+        }
+      }
+    }
+  }, [selectedMonth]);
+
+  // Ensure stripStartDate encompasses targetDate whenever targetDate changes
+  useEffect(() => {
+    if (!targetDate) return;
+    const stripEndDate = addDaysToDateStr(stripStartDate, 6);
+    if (targetDate < stripStartDate || targetDate > stripEndDate) {
+      setStripStartDate(targetDate);
+    }
+  }, [targetDate, stripStartDate]);
+
+  // Fetch status whenever targetDate changes
+  useEffect(() => {
+    if (targetDate) {
+      fetchStatusForDate(targetDate);
+    }
   }, [targetDate]);
 
   const fetchStatusForDate = async (date: string) => {
+    if (!date) return;
     setLoading(true);
     setMessage(null);
     try {
@@ -208,10 +273,11 @@ export default function MealBookingWidget({ selectedMonth }: MealBookingWidgetPr
     }
   };
 
-  // Format date to Bengali long string
+  // Format date to Bengali long string cleanly without timezone drift
   const formatBengaliDate = (dateStr: string) => {
+    if (!dateStr) return '';
     try {
-      const d = new Date(dateStr + 'T00:00:00');
+      const d = parseLocalDate(dateStr);
       return d.toLocaleDateString('bn-BD', {
         weekday: 'long',
         day: 'numeric',
@@ -223,22 +289,59 @@ export default function MealBookingWidget({ selectedMonth }: MealBookingWidgetPr
     }
   };
 
-  // Generate 7-day quick strip starting from today
-  const getUpcomingDays = () => {
+  // Generate 7 consecutive days starting from stripStartDate
+  const getVisibleStripDays = () => {
     const days = [];
-    const base = new Date();
     for (let i = 0; i < 7; i++) {
-      const d = new Date();
-      d.setDate(base.getDate() + i);
-      const dateStr = d.toISOString().split('T')[0];
+      const curDateStr = addDaysToDateStr(stripStartDate, i);
+      const d = parseLocalDate(curDateStr);
       const dayNum = d.getDate();
-      const dayLabel = i === 0 ? 'আজ' : i === 1 ? 'আগামীকাল' : d.toLocaleDateString('bn-BD', { weekday: 'short' });
-      days.push({ dateStr, dayNum, dayLabel });
+      let dayLabel = d.toLocaleDateString('bn-BD', { weekday: 'short' });
+
+      if (curDateStr === today) {
+        dayLabel = 'আজ';
+      } else if (curDateStr === tomorrow) {
+        dayLabel = 'আগামীকাল';
+      } else if (curDateStr === addDaysToDateStr(today, -1)) {
+        dayLabel = 'গতকাল';
+      }
+
+      const isPast = curDateStr < today;
+      const isCurrentToday = curDateStr === today;
+      const monthLabel = d.toLocaleDateString('bn-BD', { month: 'short' });
+
+      days.push({
+        dateStr: curDateStr,
+        dayNum,
+        dayLabel,
+        isPast,
+        isCurrentToday,
+        monthLabel,
+      });
     }
     return days;
   };
 
-  const upcomingDays = getUpcomingDays();
+  const visibleDays = getVisibleStripDays();
+
+  // Strip navigation handlers
+  const handlePrevDays = () => {
+    setStripStartDate((prev) => addDaysToDateStr(prev, -7));
+  };
+
+  const handleNextDays = () => {
+    setStripStartDate((prev) => addDaysToDateStr(prev, 7));
+  };
+
+  const handleResetToToday = () => {
+    setTargetDate(today);
+    setStripStartDate(today);
+  };
+
+  const handleJumpToTomorrow = () => {
+    setTargetDate(tomorrow);
+    setStripStartDate(today);
+  };
 
   // Calculate day total
   const memberMealTotal = (breakfast ? 0.5 : 0) + (lunch ? 1.0 : 0) + (dinner ? 1.0 : 0);
@@ -263,52 +366,130 @@ export default function MealBookingWidget({ selectedMonth }: MealBookingWidgetPr
           </p>
         </div>
 
-        {/* Selected Date Indicator & Picker */}
-        <div className="flex items-center space-x-2 self-start md:self-auto bg-white/10 backdrop-blur-md p-1.5 rounded-2xl border border-white/15">
-          <CalendarIcon className="w-4 h-4 text-emerald-300 ml-2" />
+        {/* Selected Date Indicator & Direct Native Date Picker */}
+        <div className="flex items-center space-x-2 self-start md:self-auto bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-2xl border border-white/20 hover:bg-white/15 transition-all">
+          <CalendarIcon className="w-4 h-4 text-emerald-300 shrink-0" />
           <input
             type="date"
             value={targetDate}
-            onChange={(e) => setTargetDate(e.target.value)}
-            className="bg-transparent text-white font-bold text-xs px-2 py-1 focus:outline-none cursor-pointer"
+            onChange={(e) => {
+              if (e.target.value) {
+                setTargetDate(e.target.value);
+              }
+            }}
+            onClick={(e) => {
+              try {
+                (e.target as HTMLInputElement).showPicker?.();
+              } catch (_) {}
+            }}
+            className="bg-transparent text-white font-bold text-xs px-1 py-0.5 focus:outline-none cursor-pointer [color-scheme:dark]"
+            title="যেকোনো নির্দিষ্ট তারিখ নির্বাচন করতে ক্লিক করুন"
           />
         </div>
       </div>
 
       <div className="px-5 sm:px-8 pb-8 space-y-6">
-        {/* 2. 7-Day Quick Horizontal Calendar Strip */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs">
+        {/* 2. Interactive 7-Day Quick Strip with Navigation */}
+        <div className="space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
             <span className="font-bold text-slate-700 flex items-center gap-1.5">
               <CalendarIcon className="w-4 h-4 text-emerald-600" />
               <span>তারিখ নির্বাচন করুন (৭ দিনের কুইক স্ট্রিপ):</span>
             </span>
-            <span className="text-slate-400 font-medium">ক্লিক করে যেকোনো দিনের মিল পরিবর্তন করুন</span>
+
+            {/* Quick jump actions & Strip navigation */}
+            <div className="flex items-center space-x-1.5">
+              <button
+                type="button"
+                onClick={handleResetToToday}
+                className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 cursor-pointer ${
+                  targetDate === today
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                }`}
+                title="আজকের তারিখে যান"
+              >
+                <span>আজ</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleJumpToTomorrow}
+                className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition-all flex items-center gap-1 cursor-pointer ${
+                  targetDate === tomorrow
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                }`}
+                title="আগামীকালের তারিখে যান"
+              >
+                <span>আগামীকাল</span>
+              </button>
+
+              <div className="h-4 w-px bg-slate-200 mx-1"></div>
+
+              <button
+                type="button"
+                onClick={handlePrevDays}
+                className="p-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors cursor-pointer"
+                title="পূর্ববর্তী ৭ দিন"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleNextDays}
+                className="p-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors cursor-pointer"
+                title="পরবর্তী ৭ দিন"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
+          {/* 7-Day Pills Grid */}
           <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
-            {upcomingDays.map((d) => {
+            {visibleDays.map((d) => {
               const isSelected = d.dateStr === targetDate;
               return (
                 <button
                   key={d.dateStr}
                   type="button"
                   onClick={() => setTargetDate(d.dateStr)}
-                  className={`p-2.5 sm:p-3 rounded-2xl border text-center transition-all cursor-pointer ${
+                  className={`p-2.5 sm:p-3 rounded-2xl border text-center transition-all cursor-pointer relative overflow-hidden ${
                     isSelected
-                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20 scale-[1.02]'
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20 scale-[1.02] ring-2 ring-emerald-400/50'
+                      : d.isCurrentToday
+                      ? 'bg-emerald-50 text-emerald-900 border-emerald-300 hover:bg-emerald-100/80'
+                      : d.isPast
+                      ? 'bg-slate-50/70 hover:bg-slate-100 text-slate-500 border-slate-200'
                       : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
                   }`}
                 >
                   <span
                     className={`text-[10px] font-extrabold block uppercase tracking-wider ${
-                      isSelected ? 'text-emerald-100' : 'text-slate-500'
+                      isSelected
+                        ? 'text-emerald-100'
+                        : d.isCurrentToday
+                        ? 'text-emerald-700 font-black'
+                        : 'text-slate-500'
                     }`}
                   >
                     {d.dayLabel}
                   </span>
-                  <span className={`text-base sm:text-lg font-black block mt-0.5 ${isSelected ? 'text-white' : 'text-slate-800'}`}>
+                  <span
+                    className={`text-base sm:text-lg font-black block mt-0.5 ${
+                      isSelected ? 'text-white' : d.isCurrentToday ? 'text-emerald-900' : 'text-slate-800'
+                    }`}
+                  >
                     {d.dayNum}
+                  </span>
+                  <span
+                    className={`text-[9px] font-bold block -mt-0.5 ${
+                      isSelected ? 'text-emerald-200' : 'text-slate-400'
+                    }`}
+                  >
+                    {d.monthLabel}
                   </span>
                 </button>
               );
@@ -316,7 +497,7 @@ export default function MealBookingWidget({ selectedMonth }: MealBookingWidgetPr
           </div>
         </div>
 
-        {/* 3. Date & Lock Status Banner */}
+        {/* 3. Selected Date & Lock Status Banner */}
         <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="space-y-0.5">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">নির্বাচিত তারিখ</span>
@@ -327,7 +508,7 @@ export default function MealBookingWidget({ selectedMonth }: MealBookingWidgetPr
             {loading ? (
               <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-200 text-slate-600 rounded-xl text-xs font-bold">
                 <Clock className="w-3.5 h-3.5 animate-spin" />
-                <span>লোড হচ্ছে...</span>
+                <span>তথ্য লোড হচ্ছে...</span>
               </span>
             ) : isMonthClosed ? (
               <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-100 text-red-800 border border-red-200 rounded-xl text-xs font-bold">
