@@ -9,7 +9,6 @@ import {
   Calendar as CalendarIcon,
   Plus,
   Minus,
-  UserCheck,
   Clock,
   Coffee,
   Sun,
@@ -235,21 +234,6 @@ export default function MealBookingWidget({ selectedMonth }: MealBookingWidgetPr
     }
   };
 
-  const quickNoteChips = [
-    'দেরিতে খাব, খাবার তুলে রাখবেন',
-    'পার্সেল করে বক্সে রাখবেন',
-    'দুপুরে মেহমান সাথে খাবে',
-    'রাতে দেরিতে ফিরব',
-  ];
-
-  const handleAddNoteChip = (chipText: string) => {
-    if (note.trim().length === 0) {
-      setNote(chipText);
-    } else if (!note.includes(chipText)) {
-      setNote(`${note}, ${chipText}`);
-    }
-  };
-
   // Format date to Bengali long string
   const formatBengaliDate = (dateStr: string) => {
     if (!dateStr) return '';
@@ -283,12 +267,6 @@ export default function MealBookingWidget({ selectedMonth }: MealBookingWidgetPr
   const isToday = targetDate === today;
   const isTomorrow = targetDate === tomorrow;
   const isCustomDate = !isToday && !isTomorrow;
-
-  // Calculate day total & meal units
-  const memberMealTotal = (breakfast ? 0.5 : 0) + (lunch ? 1.0 : 0) + (dinner ? 1.0 : 0);
-  const guestMealUnits = (guestBreakfast * 0.5) + (guestLunch * 1.0) + (guestDinner * 1.0);
-  const totalGuestCount = guestBreakfast + guestLunch + guestDinner;
-  const dayGrandTotal = memberMealTotal + guestMealUnits;
 
   return (
     <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden space-y-6">
@@ -618,7 +596,6 @@ export default function MealBookingWidget({ selectedMonth }: MealBookingWidgetPr
               <div className="pt-2 flex items-center justify-between bg-white/70 p-3 rounded-2xl border border-slate-200/80">
                 <div>
                   <span className="text-xs font-bold text-slate-800 block">সকালে মেহমান মিল</span>
-                  <span className="text-[11px] text-slate-500">গেস্ট নাস্তা সংখ্যা (০.৫ ইউনিট)</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <button
@@ -708,7 +685,6 @@ export default function MealBookingWidget({ selectedMonth }: MealBookingWidgetPr
               <div className="pt-2 flex items-center justify-between bg-white/70 p-3 rounded-2xl border border-slate-200/80">
                 <div>
                   <span className="text-xs font-bold text-slate-800 block">দুপুরে মেহমান মিল</span>
-                  <span className="text-[11px] text-slate-500">গেস্ট লাঞ্চ সংখ্যা (১.০ ইউনিট)</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <button
@@ -798,7 +774,6 @@ export default function MealBookingWidget({ selectedMonth }: MealBookingWidgetPr
               <div className="pt-2 flex items-center justify-between bg-white/70 p-3 rounded-2xl border border-slate-200/80">
                 <div>
                   <span className="text-xs font-bold text-slate-800 block">রাতে মেহমান মিল</span>
-                  <span className="text-[11px] text-slate-500">গেস্ট ডিনার সংখ্যা (১.০ ইউনিট)</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <button
@@ -833,33 +808,7 @@ export default function MealBookingWidget({ selectedMonth }: MealBookingWidgetPr
             </div>
           </div>
 
-          {/* 6. Real-Time Daily Meal Calculation Ribbon */}
-          <div className="p-4 sm:p-5 bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 rounded-2xl border border-emerald-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs shadow-sm">
-            <div className="flex items-center space-x-3.5">
-              <span className="p-2.5 bg-emerald-600 text-white rounded-xl shadow-sm shrink-0">
-                <UserCheck className="w-5 h-5" />
-              </span>
-              <div>
-                <span className="font-extrabold text-slate-900 text-sm sm:text-base block">
-                  এই দিনের মোট মিল: <span className="text-emerald-700 font-black font-mono text-base sm:text-lg">{dayGrandTotal} টি</span>
-                </span>
-                <span className="text-slate-600 font-medium block mt-0.5">
-                  আপনার নিজস্ব মিল: <span className="font-bold text-slate-800">{memberMealTotal} টি</span> • মোট মেহমান মিল: <span className="font-bold text-slate-800">{guestMealUnits} টি</span>
-                  {totalGuestCount > 0 && (
-                    <span className="text-slate-500"> (সকালে {guestBreakfast} | দুপুরে {guestLunch} | রাতে {guestDinner})</span>
-                  )}
-                </span>
-              </div>
-            </div>
-
-            {guestMealUnits > 0 && (
-              <span className="px-3 py-1.5 bg-emerald-600 text-white font-extrabold rounded-full text-xs shadow-sm self-start sm:self-auto shrink-0 flex items-center gap-1">
-                +{guestMealUnits} টি গেস্ট মিল যুক্ত
-              </span>
-            )}
-          </div>
-
-          {/* 7. Special Note to Manager with Clickable Quick Chips */}
+          {/* Special Note to Manager */}
           <div className="space-y-2">
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
               ম্যানেজার ও বাবুর্চির জন্য বার্তা / নোট (ঐচ্ছিক):
@@ -872,23 +821,6 @@ export default function MealBookingWidget({ selectedMonth }: MealBookingWidgetPr
               placeholder="যেমন: দুপুরের খাবার বেলা ২টায় খাব, খাবার বক্সে তুলে রাখবেন..."
               className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 disabled:opacity-60"
             />
-
-            {/* Quick Chips */}
-            {!isMonthClosed && !(breakfastLocked && lunchLocked && dinnerLocked) && (
-              <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                <span className="text-[11px] font-bold text-slate-500">কুইক ট্যাগস:</span>
-                {quickNoteChips.map((chip) => (
-                  <button
-                    key={chip}
-                    type="button"
-                    onClick={() => handleAddNoteChip(chip)}
-                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer border border-slate-200"
-                  >
-                    + {chip}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* 8. Save Button */}
