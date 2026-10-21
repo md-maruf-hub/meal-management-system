@@ -1,4 +1,6 @@
 import { DatabaseSchema, readDb } from './local-storage';
+import { Member } from '../types';
+import { normalizePhone } from '../auth';
 
 const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbxBczsU1fa5rBb09jDsNVatRl1FnP_BFaKS-eroESfUoxnJzh0U-TCphCwk8Avqj8WZ/exec";
 
@@ -82,6 +84,66 @@ export async function fetchGasData(action: string, payload: Record<string, unkno
   return json.data;
 }
 
+export function normalizeMembers(rawMembers: any[]): Member[] {
+  return (rawMembers || []).map((m: any) => {
+    const rawPhone = String(m.phone || '').trim();
+    const phone = normalizePhone(rawPhone) || rawPhone;
+
+    const rawStatus = String(m.status || '').trim().toUpperCase();
+    const status = (rawStatus === 'APPROVED' || rawStatus === 'ACTIVE')
+      ? 'APPROVED'
+      : (rawStatus === 'REJECTED' ? 'REJECTED' : (rawStatus === 'INACTIVE' ? 'INACTIVE' : 'PENDING'));
+
+    const rawRole = String(m.role || 'MEMBER').trim().toUpperCase();
+    const role = (rawRole === 'SUPER_ADMIN' || rawRole === 'MANAGER' || rawRole === 'MEMBER')
+      ? (rawRole as any)
+      : 'MEMBER';
+
+    return {
+      id: String(m.id || `user-${Date.now()}`),
+      memberId: String(m.memberId || ''),
+      name: String(m.name || ''),
+      phone,
+      roomNo: String(m.roomNo || ''),
+      email: String(m.email || ''),
+      address: String(m.address || ''),
+      status,
+      role,
+      joinDate: String(m.joinDate || ''),
+      leaveDate: m.leaveDate ? String(m.leaveDate) : undefined,
+      passwordHash: String(m.passwordHash || '').trim(),
+      createdAt: String(m.createdAt || new Date().toISOString()),
+    };
+  });
+}
+
+export async function fetchGasMembers(): Promise<Member[] | null> {
+  // 1. Try lightweight getMembers action if supported by GAS
+  try {
+    const res = (await fetchGasData('getMembers')) as any;
+    if (res && (Array.isArray(res.members) || Array.isArray(res))) {
+      const list = Array.isArray(res.members) ? res.members : res;
+      if (list.length > 0) {
+        return normalizeMembers(list);
+      }
+    }
+  } catch (err) {
+    // If getMembers action not yet active on GAS deployment, fallback to getMillData
+  }
+
+  // 2. Fallback to getMillData
+  try {
+    const full = (await fetchGasData('getMillData')) as DatabaseSchema;
+    if (full && Array.isArray(full.members) && full.members.length > 0) {
+      return full.members;
+    }
+  } catch (err) {
+    console.error('Failed to fetch members from Google Sheets:', err);
+  }
+
+  return null;
+}
+
 function normalizeGasData(raw: any): DatabaseSchema {
   const normalizeYearMonth = (val: any): string => {
     if (!val) return new Date().toISOString().substring(0, 7);
@@ -102,26 +164,7 @@ function normalizeGasData(raw: any): DatabaseSchema {
     return new Date().toISOString().substring(0, 7);
   };
 
-  const members = (raw.members || []).map((m: any) => {
-    const rawPhone = String(m.phone || '').trim();
-    const phone = rawPhone.startsWith('0') ? rawPhone : (rawPhone ? `0${rawPhone}` : '');
-
-    return {
-      id: String(m.id),
-      memberId: String(m.memberId),
-      name: String(m.name),
-      phone,
-      roomNo: String(m.roomNo),
-      email: String(m.email || ''),
-      address: String(m.address || ''),
-      status: m.status as any,
-      role: m.role as any,
-      joinDate: String(m.joinDate || ''),
-      leaveDate: m.leaveDate ? String(m.leaveDate) : undefined,
-      passwordHash: String(m.passwordHash || ''),
-      createdAt: String(m.createdAt || new Date().toISOString()),
-    };
-  });
+  const members = normalizeMembers(raw.members || []);
 
   const rawExpenses = raw.expenses || [];
   const activeMemCount = (raw.members || []).filter((m: any) => m.status === 'APPROVED' && m.role !== 'SUPER_ADMIN').length || 1;

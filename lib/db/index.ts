@@ -1,5 +1,5 @@
 import { readDb, writeDb, DatabaseSchema, getInitialData } from './local-storage';
-import { fetchGasData, getGasUrl } from './google-sheets';
+import { fetchGasData, fetchGasMembers, getGasUrl } from './google-sheets';
 import { Member, MealEntry, BazarEntry, ExpenseItem, Deposit, SettlementEntry, MonthLock } from '../types';
 
 let cachedDb: DatabaseSchema | null = null;
@@ -316,6 +316,22 @@ export async function syncAndPruneMonthTransition(): Promise<{ synced: boolean; 
 export async function pullFromGoogleSheets(): Promise<DatabaseSchema> {
   historicalCache.clear();
   return await getDatabase(true);
+}
+
+/**
+ * Directly queries Google Sheets Members sheet and synchronizes local member list.
+ * Used for instant, zero-delay login verification matching directly against Google Sheets.
+ */
+export async function syncMembersFromGoogleSheet(): Promise<DatabaseSchema> {
+  const members = await fetchGasMembers();
+  const db = cachedDb || readDb();
+  if (members && Array.isArray(members) && members.length > 0) {
+    db.members = members;
+    cachedDb = db;
+    lastFetchTime = Date.now();
+    writeDb(db);
+  }
+  return db;
 }
 
 /**

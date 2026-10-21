@@ -54,6 +54,11 @@ function doPost(e) {
       var db = readFullData(ss);
       return responseJSON({ success: true, data: db });
     }
+
+    if (action === "getMembers") {
+      var members = readSheetJSON(ss, "Members");
+      return responseJSON({ success: true, data: { members: members } });
+    }
     
     if (action === "syncFullData") {
       writeFullDataSolution(ss, contents.db || {});

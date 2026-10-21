@@ -5,6 +5,14 @@ import { verifyToken } from './lib/auth';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  const token = request.cookies.get('mill_session')?.value;
+  const user = token ? await verifyToken(token) : null;
+
+  // If already logged in and visiting home, login or register, direct straight to dashboard
+  if (user && (pathname === '/' || pathname === '/login' || pathname === '/register')) {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
   // Public paths
   if (
     pathname === '/' ||
@@ -18,12 +26,6 @@ export async function middleware(request: NextRequest) {
   }
 
   // Token check from cookie
-  const token = request.cookies.get('mill_session')?.value;
-  if (!token) {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-
-  const user = await verifyToken(token);
   if (!user) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
@@ -36,7 +38,6 @@ export async function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
-
 export const config = {
-  matcher: ['/dashboard/:path*', '/reports/:path*', '/api/:path*'],
+  matcher: ['/', '/login', '/register', '/dashboard/:path*', '/reports/:path*', '/api/:path*'],
 };
