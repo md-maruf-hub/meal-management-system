@@ -12,13 +12,17 @@ import {
   Search,
   RefreshCw,
   Phone,
-  MessageSquare,
-  Clock,
   Save,
   Sliders,
   Plus,
   Minus,
   FileSpreadsheet,
+  ChevronDown,
+  ChevronUp,
+  Check,
+  X,
+  Settings2,
+  Sparkles,
 } from 'lucide-react';
 
 interface CookingBoardProps {
@@ -47,7 +51,7 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
   const [savingRowId, setSavingRowId] = useState<string | null>(null);
   const [savingBulk, setSavingBulk] = useState(false);
 
-  // Google Sheets Sync State (Add to Sheet on demand)
+  // Google Sheets Sync State
   const [isAddedToSheet, setIsAddedToSheet] = useState<boolean>(false);
   const [sheetMealCount, setSheetMealCount] = useState<number>(0);
   const [syncingToSheet, setSyncingToSheet] = useState<boolean>(false);
@@ -57,11 +61,14 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
   const [lWeight, setLWeight] = useState<number>(1.0);
   const [dWeight, setDWeight] = useState<number>(1.0);
 
-  // Configurable Guest Meal Values/Weights (Optional / On-Demand)
+  // Configurable Guest Meal Values/Weights
   const [guestBWeight, setGuestBWeight] = useState<number>(0.5);
   const [guestLWeight, setGuestLWeight] = useState<number>(1.0);
   const [guestDWeight, setGuestDWeight] = useState<number>(1.0);
   const [showCustomGuestWeights, setShowCustomGuestWeights] = useState<boolean>(false);
+
+  // Expandable Weights Setting Drawer
+  const [isWeightSettingsOpen, setIsWeightSettingsOpen] = useState<boolean>(false);
 
   // Guest Breakdown Modal State
   const [guestModalMember, setGuestModalMember] = useState<any | null>(null);
@@ -110,6 +117,8 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
         setGuestDWeight(gdVal);
 
         const hasCustom = Boolean(resData.hasCustomGuestWeights) || gbVal !== bVal || glVal !== lVal || gdVal !== dVal;
+        setShowCustomGuestWeights(hasCustom);
+
         setIsAddedToSheet(Boolean(resData.isAddedToSheet));
         setSheetMealCount(Number(resData.sheetTotalMealCount) || 0);
 
@@ -285,22 +294,6 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
     setGuestModalMember(null);
   };
 
-  const handleGuestCountChange = (memberId: string, delta: number) => {
-    setMembersState((prev) =>
-      prev.map((m) => {
-        if (m.memberId !== memberId) return m;
-        const newCount = Math.max(0, (m.guestCount || 0) + delta);
-        // Distribute to lunch if no breakdown exists
-        return {
-          ...m,
-          guestCount: newCount,
-          guestLunch: newCount,
-        };
-      })
-    );
-    setDirtyMap((prev) => ({ ...prev, [memberId]: true }));
-  };
-
   const calculateMemberMealTotal = (m: any) => {
     const gb = Number(m.guestBreakfast) || 0;
     const gl = Number(m.guestLunch) || 0;
@@ -442,7 +435,7 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
     }
   };
 
-  // Apply current B, L, D weights to all members and save to Daily Matrix
+  // Apply current B, L, D weights to all members and save
   const handleApplyWeightsToAll = async () => {
     setSavingBulk(true);
     setToastMessage(null);
@@ -486,6 +479,7 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
           text: customMsg,
         });
         setDirtyMap({});
+        setIsWeightSettingsOpen(false);
         if (onSyncComplete) onSyncComplete();
       } else {
         setToastMessage({
@@ -524,7 +518,7 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
       if (res.ok && resData.success) {
         setToastMessage({
           type: 'success',
-          text: resData.message || (action === 'LOCK_AND_SYNC' ? 'মিল সাইটে সফলভাবে লক করা হয়েছে। শিটে পাঠাতে "শিটে যোগ করুন" চাপুন।' : 'মিল আনলক করা হয়েছে।'),
+          text: resData.message || (action === 'LOCK_AND_SYNC' ? 'সব বেলার মিল সাইটে সফলভাবে লক করা হয়েছে!' : 'সব বেলার মিল আনলক করা হয়েছে।'),
         });
         await fetchCookingData();
         if (onSyncComplete) onSyncComplete();
@@ -545,7 +539,7 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
   };
 
   const isAllLocked = Boolean(data?.isLocked || (breakfastLocked && lunchLocked && dinnerLocked));
-  const isLocked = isAllLocked;
+  const isPartiallyLocked = (breakfastLocked || lunchLocked || dinnerLocked) && !isAllLocked;
 
   // Dynamic live summary based on membersState
   const liveBreakfastRegular = membersState.filter((m) => m.breakfast).length;
@@ -581,6 +575,9 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
 
   const dirtyCount = Object.keys(dirtyMap).length;
 
+  const eatingCount = membersState.filter((m) => m.breakfast || m.lunch || m.dinner || m.guestCount > 0).length;
+  const offCount = membersState.length - eatingCount;
+
   const filteredMembers = membersState.filter((m) => {
     const matchesSearch =
       m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -599,63 +596,62 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
 
   return (
     <div className="space-y-6">
-      {/* Top Header Card */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-8 rounded-3xl shadow-xl border border-slate-700/60 flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="space-y-2">
-          <div className="flex items-center space-x-2">
-            <span className="p-2 bg-emerald-500/20 text-emerald-400 rounded-xl">
-              <Utensils className="w-5 h-5" />
-            </span>
-            <span className="text-xs font-bold text-emerald-400 tracking-wider uppercase">
-              রান্নার লাইভ হিসাব ও মিল কন্ট্রোল বোর্ড
-            </span>
-          </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            কোন বেলায় কত মিল রান্না হবে?
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-300">
-            তারিখ নির্বাচন করুন, মেম্বারদের মিল অন/অফ বা মান সেট করুন এবং রান্নার আগে লক করুন।
-          </p>
-        </div>
+      {/* 1. Header Banner & Date Selector */}
+      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white p-6 sm:p-7 rounded-3xl shadow-xl border border-slate-700/60 relative overflow-hidden">
+        {/* Subtle decorative glow */}
+        <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Date Selector & Settings Toggle */}
-        <div className="flex flex-col sm:flex-row items-center gap-3">
-          <div className="flex items-center space-x-2 bg-slate-800/90 p-1.5 rounded-2xl border border-slate-700 w-full sm:w-auto">
-            <button
-              type="button"
-              onClick={() => setDate(today)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
-                date === today
-                  ? 'bg-emerald-500 text-slate-950 shadow'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              আজ (Today)
-            </button>
-            <button
-              type="button"
-              onClick={() => setDate(tomorrow)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
-                date === tomorrow
-                  ? 'bg-emerald-500 text-slate-950 shadow'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              আগামীকাল (Tomorrow)
-            </button>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="bg-slate-900 text-white text-xs px-3 py-2 rounded-xl border border-slate-700 focus:outline-none focus:border-emerald-400 cursor-pointer"
-            />
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/30">
+              <Utensils className="w-3.5 h-3.5" />
+              <span>কুকিং বোর্ড ও কিচেন কন্ট্রোল</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+              কোন বেলায় কত মিল রান্না হবে?
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-300 max-w-xl">
+              তারিখ নির্বাচন করে সকাল, দুপুর ও রাতের সঠিক মিল হিসাব দেখুন, মেম্বারদের মিল নিয়ন্ত্রণ করুন এবং রান্নার পূর্বে সেশন লক করুন।
+            </p>
           </div>
 
-          <div className="flex items-center space-x-2">
+          {/* Quick Date Switcher & Refresh */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+            <div className="flex items-center space-x-1.5 bg-slate-800/90 p-1.5 rounded-2xl border border-slate-700 backdrop-blur shadow-inner">
+              <button
+                type="button"
+                onClick={() => setDate(today)}
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                  date === today
+                    ? 'bg-emerald-500 text-slate-950 shadow-md font-extrabold'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                }`}
+              >
+                আজ
+              </button>
+              <button
+                type="button"
+                onClick={() => setDate(tomorrow)}
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                  date === tomorrow
+                    ? 'bg-emerald-500 text-slate-950 shadow-md font-extrabold'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+                }`}
+              >
+                আগামীকাল
+              </button>
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="bg-slate-900 text-white text-xs px-3 py-2 rounded-xl border border-slate-700 focus:outline-none focus:border-emerald-400 cursor-pointer font-medium"
+              />
+            </div>
+
             <button
               onClick={fetchCookingData}
               title="রিফ্রেশ করুন"
-              className="p-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-2xl border border-slate-700 transition-colors"
+              className="p-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-2xl border border-slate-700 transition-colors flex items-center justify-center shadow-sm"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
@@ -663,12 +659,13 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
         </div>
       </div>
 
+      {/* Toast Feedback */}
       {toastMessage && (
         <div
-          className={`p-4 rounded-2xl text-xs font-bold flex items-center space-x-2 shadow-sm ${
+          className={`p-4 rounded-2xl text-xs font-bold flex items-center space-x-2.5 shadow-sm animate-in fade-in slide-in-from-top-2 duration-150 ${
             toastMessage.type === 'success'
-              ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
-              : 'bg-red-50 border border-red-200 text-red-800'
+              ? 'bg-emerald-50 border border-emerald-300 text-emerald-900'
+              : 'bg-red-50 border border-red-300 text-red-900'
           }`}
         >
           {toastMessage.type === 'success' ? (
@@ -676,542 +673,620 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
           ) : (
             <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
           )}
-          <span>{toastMessage.text}</span>
+          <span className="flex-1">{toastMessage.text}</span>
+          <button
+            onClick={() => setToastMessage(null)}
+            className="p-1 text-slate-400 hover:text-slate-700 rounded-lg"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 
-      {/* 4 Clean KPI Cooking Cards (Display Only) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Breakfast */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-2 hover:border-amber-300 transition-colors">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-bold uppercase tracking-wider">🍳 সকালের নাস্তা</span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 font-bold border border-amber-200">
-              {bWeight} pt {showCustomGuestWeights && guestBWeight !== bWeight ? `(গেস্ট ${guestBWeight})` : ''}
-            </span>
-          </div>
-          <p className="text-3xl sm:text-4xl font-extrabold text-amber-600">
-            {loading ? '...' : liveTotalBreakfast} <span className="text-base font-semibold text-slate-500">মিল</span>
-          </p>
-          <p className="text-xs text-slate-500">
-            রেগুলার: {liveBreakfastRegular} + গেস্ট: {liveBreakfastGuests}
-          </p>
-        </div>
-
-        {/* Lunch */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-2 hover:border-blue-300 transition-colors">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-bold uppercase tracking-wider">🍛 দুপুরের খাবার</span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-800 font-bold border border-blue-200">
-              {lWeight} pt {showCustomGuestWeights && guestLWeight !== lWeight ? `(গেস্ট ${guestLWeight})` : ''}
-            </span>
-          </div>
-          <p className="text-3xl sm:text-4xl font-extrabold text-blue-600">
-            {loading ? '...' : liveTotalLunch}{' '}
-            <span className="text-base font-semibold text-slate-500">মিল</span>
-          </p>
-          <p className="text-xs text-slate-500">
-            রেগুলার: {liveLunchRegular} + গেস্ট: {liveLunchGuests}
-          </p>
-        </div>
-
-        {/* Dinner */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-2 hover:border-purple-300 transition-colors">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-bold uppercase tracking-wider">🍲 রাতের খাবার</span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-purple-50 text-purple-800 font-bold border border-purple-200">
-              {dWeight} pt {showCustomGuestWeights && guestDWeight !== dWeight ? `(গেস্ট ${guestDWeight})` : ''}
-            </span>
-          </div>
-          <p className="text-3xl sm:text-4xl font-extrabold text-purple-600">
-            {loading ? '...' : liveTotalDinner}{' '}
-            <span className="text-base font-semibold text-slate-500">মিল</span>
-          </p>
-          <p className="text-xs text-slate-500">
-            রেগুলার: {liveDinnerRegular} + গেস্ট: {liveDinnerGuests}
-          </p>
-        </div>
-
-        {/* Guest Meals */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-2 hover:border-indigo-300 transition-colors">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-bold uppercase tracking-wider">👥 গেস্ট / অতিরিক্ত মিল</span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-800 font-bold border border-indigo-200">
-              {Math.round(liveGuestPoints * 10) / 10} Pt
-            </span>
-          </div>
-          <p className="text-3xl sm:text-4xl font-extrabold text-indigo-600">
-            {loading ? '...' : liveGuests}{' '}
-            <span className="text-base font-semibold text-slate-500">টি</span>
-          </p>
-          <p className="text-xs text-slate-500">
-            সকালে {liveBreakfastGuests} | দুপুরে {liveLunchGuests} | রাতে {liveDinnerGuests}
-          </p>
-        </div>
-      </div>
-
-      {/* ONE Single Dedicated Meal Lock Control Center */}
-      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-        {/* Banner Header: Title, Status Badge & Master Lock/Unlock Button */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+      {/* 2. Unified Master Lock & Google Sheet Sync Command Bar */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Master Lock Bar */}
+        <div className={`p-4 sm:p-5 rounded-3xl border shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 transition-all ${
+          isAllLocked
+            ? 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-300'
+            : isPartiallyLocked
+            ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-300'
+            : 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-300'
+        }`}>
           <div className="flex items-center space-x-3">
-            <div
-              className={`p-3 rounded-2xl border flex-shrink-0 ${
-                isAllLocked
-                  ? 'bg-amber-100 text-amber-800 border-amber-300'
-                  : (breakfastLocked || lunchLocked || dinnerLocked)
-                  ? 'bg-blue-100 text-blue-800 border-blue-300'
-                  : 'bg-emerald-100 text-emerald-800 border-emerald-300'
-              }`}
-            >
+            <div className={`p-2.5 rounded-2xl border flex-shrink-0 ${
+              isAllLocked
+                ? 'bg-amber-100 text-amber-800 border-amber-300'
+                : isPartiallyLocked
+                ? 'bg-blue-100 text-blue-800 border-blue-300'
+                : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+            }`}>
               {isAllLocked ? <Lock className="w-5 h-5" /> : <Unlock className="w-5 h-5" />}
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h3 className="font-bold text-slate-900 text-base">
-                  মিল লক কন্ট্রোল বোর্ড
-                </h3>
-                <span
-                  className={`text-xs font-extrabold px-3 py-0.5 rounded-full border ${
-                    isAllLocked
-                      ? 'bg-amber-100 text-amber-800 border-amber-300'
-                      : (breakfastLocked || lunchLocked || dinnerLocked)
-                      ? 'bg-blue-100 text-blue-800 border-blue-300'
-                      : 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                  }`}
-                >
-                  {isAllLocked
-                    ? '🔒 সব বেলা লকড'
-                    : (breakfastLocked || lunchLocked || dinnerLocked)
-                    ? '⚠️ আংশিক লকড'
-                    : '🟢 সব উন্মুক্ত (OPEN)'}
+                <h4 className="font-bold text-slate-900 text-sm">মিল লক স্থিতি ({date})</h4>
+                <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
+                  isAllLocked
+                    ? 'bg-amber-200 text-amber-900 border-amber-300'
+                    : isPartiallyLocked
+                    ? 'bg-blue-200 text-blue-900 border-blue-300'
+                    : 'bg-emerald-200 text-emerald-900 border-emerald-300'
+                }`}>
+                  {isAllLocked ? '🔒 সব বেলা লকড' : isPartiallyLocked ? '⚠️ আংশিক লকড' : '🟢 সব উন্মুক্ত'}
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                রান্নার প্রস্তুতির সুবিধার্থে সকাল, দুপুর বা রাতের মিল আলাদা করে অথবা সব বেলা একসাথে লক করুন।
+              <p className="text-[11px] text-slate-600 mt-0.5">
+                {isAllLocked
+                  ? 'সব বেলার মিল সাইটে লক করা আছে।'
+                  : isPartiallyLocked
+                  ? 'কিছু বেলা লকড, কিছু বেলা উন্মুক্ত রয়েছে।'
+                  : 'সকল মেম্বারদের মিল উন্মুক্ত রয়েছে।'}
               </p>
             </div>
           </div>
 
-          {/* Master Lock/Unlock All Button */}
-          <div className="flex-shrink-0">
+          {/* Master Lock/Unlock Action Button */}
+          <div className="flex-shrink-0 self-end sm:self-auto">
             {isAllLocked ? (
               <button
                 type="button"
                 onClick={() => handleToggleLock('UNLOCK')}
                 disabled={processingLock}
-                className="w-full md:w-auto px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl border border-slate-300 shadow-sm transition-all flex items-center justify-center space-x-2"
+                className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs rounded-xl border border-slate-300 shadow-sm transition-all flex items-center space-x-1.5"
               >
-                <Unlock className="w-4 h-4 text-slate-600" />
-                <span>{processingLock ? 'আনলক হচ্ছে...' : 'সব বেলা আনলক করুন'}</span>
+                <Unlock className="w-3.5 h-3.5 text-slate-600" />
+                <span>{processingLock ? 'আনলক হচ্ছে...' : 'সব আনলক করুন'}</span>
               </button>
             ) : (
               <button
                 type="button"
                 onClick={() => handleToggleLock('LOCK_AND_SYNC')}
                 disabled={processingLock}
-                className="w-full md:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center space-x-2"
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center space-x-1.5"
               >
-                <Lock className="w-4 h-4" />
-                <span>{processingLock ? 'লক হচ্ছে...' : '🔒 সব বেলা একসাথে লক করুন'}</span>
+                <Lock className="w-3.5 h-3.5 text-emerald-400" />
+                <span>{processingLock ? 'লক হচ্ছে...' : '🔒 সব বেলা লক করুন'}</span>
               </button>
             )}
           </div>
         </div>
 
-        {/* 3 Interactive Session Lock Toggles in ONE clean row */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {/* Breakfast Session Lock Card */}
-          <div className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between ${
-            breakfastLocked
-              ? 'bg-amber-50/70 border-amber-300 text-amber-950'
-              : 'bg-slate-50 border-slate-200 text-slate-800'
-          }`}>
-            <div className="flex items-center space-x-2.5">
-              <span className="text-xl">🍳</span>
-              <div>
-                <div className="font-bold text-xs flex items-center gap-1.5">
-                  <span>সকালের নাস্তা</span>
-                  <span className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-md ${
-                    breakfastLocked ? 'bg-amber-200 text-amber-900' : 'bg-emerald-100 text-emerald-800'
-                  }`}>
-                    {breakfastLocked ? 'লকড' : 'উন্মুক্ত'}
-                  </span>
-                </div>
-                <span className="text-[11px] text-slate-500">
-                  {liveTotalBreakfast} মিল (রেগুলার {liveBreakfastRegular} + গেস্ট {liveBreakfastGuests})
+        {/* Google Sheet Sync Bar */}
+        <div className={`p-4 sm:p-5 rounded-3xl border shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 transition-all ${
+          isAddedToSheet
+            ? 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-300'
+            : 'bg-gradient-to-r from-slate-50 to-blue-50 border-slate-200'
+        }`}>
+          <div className="flex items-center space-x-3">
+            <div className={`p-2.5 rounded-2xl border flex-shrink-0 ${
+              isAddedToSheet ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-slate-100 text-slate-700 border-slate-300'
+            }`}>
+              <FileSpreadsheet className="w-5 h-5 text-emerald-700" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h4 className="font-bold text-slate-900 text-sm">গুগল শিট মিল হিসাব</h4>
+                <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
+                  isAddedToSheet
+                    ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                    : 'bg-amber-100 text-amber-900 border-amber-300'
+                }`}>
+                  {isAddedToSheet ? `✅ শিটে যুক্ত (${sheetMealCount} মিল)` : '⏳ শিটে পাঠানো হয়নি'}
                 </span>
               </div>
+              <p className="text-[11px] text-slate-600 mt-0.5">
+                {isAddedToSheet ? 'গুগল শিট ও মাসিক প্রতিবেদনে মিল সংরক্ষিত আছে।' : 'চূড়ান্ত হিসাব গুগল শিটে পাঠাতে বাটনে চাপুন।'}
+              </p>
             </div>
-            <button
-              type="button"
-              disabled={processingLock}
-              onClick={() => handleToggleSessionLock('breakfast', !breakfastLocked)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1 ${
-                breakfastLocked
-                  ? 'bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 shadow-sm'
-                  : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm'
-              }`}
-            >
-              {breakfastLocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-              <span>{breakfastLocked ? 'আনলক' : 'লক করুন'}</span>
-            </button>
           </div>
 
-          {/* Lunch Session Lock Card */}
-          <div className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between ${
-            lunchLocked
-              ? 'bg-blue-50/70 border-blue-300 text-blue-950'
-              : 'bg-slate-50 border-slate-200 text-slate-800'
-          }`}>
-            <div className="flex items-center space-x-2.5">
-              <span className="text-xl">🍛</span>
-              <div>
-                <div className="font-bold text-xs flex items-center gap-1.5">
-                  <span>দুপুরের খাবার</span>
-                  <span className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-md ${
-                    lunchLocked ? 'bg-blue-200 text-blue-900' : 'bg-emerald-100 text-emerald-800'
-                  }`}>
-                    {lunchLocked ? 'লকড' : 'উন্মুক্ত'}
-                  </span>
-                </div>
-                <span className="text-[11px] text-slate-500">
-                  {liveTotalLunch} মিল (রেগুলার {liveLunchRegular} + গেস্ট {liveLunchGuests})
-                </span>
-              </div>
-            </div>
+          <div className="flex items-center space-x-2 flex-shrink-0 self-end sm:self-auto">
             <button
               type="button"
-              disabled={processingLock}
-              onClick={() => handleToggleSessionLock('lunch', !lunchLocked)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1 ${
-                lunchLocked
-                  ? 'bg-white hover:bg-blue-100 text-blue-950 border border-blue-300 shadow-sm'
-                  : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm'
+              onClick={handleAddToSheet}
+              disabled={syncingToSheet}
+              className={`px-4 py-2 rounded-xl font-bold text-xs shadow transition-all flex items-center space-x-1.5 ${
+                isAddedToSheet
+                  ? 'bg-emerald-700 hover:bg-emerald-600 text-white'
+                  : 'bg-emerald-600 hover:bg-emerald-500 text-white'
               }`}
             >
-              {lunchLocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-              <span>{lunchLocked ? 'আনলক' : 'লক করুন'}</span>
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span>{syncingToSheet ? 'প্রসেসিং...' : isAddedToSheet ? '🔄 শিট আপডেট' : '➕ শিটে যোগ করুন'}</span>
             </button>
-          </div>
 
-          {/* Dinner Session Lock Card */}
-          <div className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between ${
-            dinnerLocked
-              ? 'bg-purple-50/70 border-purple-300 text-purple-950'
-              : 'bg-slate-50 border-slate-200 text-slate-800'
-          }`}>
-            <div className="flex items-center space-x-2.5">
-              <span className="text-xl">🍲</span>
-              <div>
-                <div className="font-bold text-xs flex items-center gap-1.5">
-                  <span>রাতের খাবার</span>
-                  <span className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-md ${
-                    dinnerLocked ? 'bg-purple-200 text-purple-900' : 'bg-emerald-100 text-emerald-800'
-                  }`}>
-                    {dinnerLocked ? 'লকড' : 'উন্মুক্ত'}
-                  </span>
-                </div>
-                <span className="text-[11px] text-slate-500">
-                  {liveTotalDinner} মিল (রেগুলার {liveDinnerRegular} + গেস্ট {liveDinnerGuests})
-                </span>
-              </div>
-            </div>
-            <button
-              type="button"
-              disabled={processingLock}
-              onClick={() => handleToggleSessionLock('dinner', !dinnerLocked)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1 ${
-                dinnerLocked
-                  ? 'bg-white hover:bg-purple-100 text-purple-900 border border-purple-300 shadow-sm'
-                  : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm'
-              }`}
-            >
-              {dinnerLocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-              <span>{dinnerLocked ? 'আনলক' : 'লক করুন'}</span>
-            </button>
+            {isAddedToSheet && (
+              <button
+                type="button"
+                onClick={handleRemoveFromSheet}
+                disabled={syncingToSheet}
+                className="px-3 py-2 rounded-xl font-bold text-xs bg-white hover:bg-red-50 text-red-700 border border-red-300 shadow-sm transition-all"
+                title="গুগল শিট থেকে মুছুন"
+              >
+                মুছুন
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Dedicated Google Sheet Sync Card */}
-      <div className={`p-6 rounded-3xl border shadow-sm transition-all flex flex-col md:flex-row md:items-center justify-between gap-5 ${
-        isAddedToSheet
-          ? 'bg-gradient-to-r from-emerald-50 via-teal-50 to-white border-emerald-300'
-          : 'bg-gradient-to-r from-blue-50 via-indigo-50 to-white border-blue-200'
-      }`}>
-        <div className="flex items-start sm:items-center space-x-3.5">
-          <div className={`p-3 rounded-2xl border flex-shrink-0 ${
-            isAddedToSheet ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-blue-100 text-blue-800 border-blue-300'
-          }`}>
-            <FileSpreadsheet className="w-6 h-6" />
-          </div>
+      {/* 3. The 4 Clean Meal KPI Cards (With Embedded Lock Toggles) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Breakfast Card */}
+        <div className={`p-5 rounded-3xl border shadow-sm transition-all flex flex-col justify-between space-y-4 ${
+          breakfastLocked
+            ? 'bg-gradient-to-b from-amber-50/70 to-white border-amber-300'
+            : 'bg-white border-slate-200 hover:border-amber-300'
+        }`}>
           <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="font-bold text-slate-900 text-base">
-                গুগল শিট মিল হিসাব ({date})
-              </h3>
-              <span className={`text-xs font-extrabold px-3 py-0.5 rounded-full border ${
-                isAddedToSheet
-                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                  : 'bg-amber-100 text-amber-800 border-amber-300'
-              }`}>
-                {isAddedToSheet ? `✅ শিটে যুক্ত করা হয়েছে (${sheetMealCount} মিল)` : '⏳ শিটে এখনও যোগ করা হয়নি (সাইট ড্রাফট)'}
+            <div className="flex items-center justify-between text-slate-500 mb-1.5">
+              <span className="text-xs font-bold uppercase tracking-wider text-amber-800 flex items-center space-x-1.5">
+                <span>🍳 সকালের নাস্তা</span>
               </span>
+              <div className="flex items-center space-x-1.5">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200">
+                  {bWeight} pt
+                </span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                  breakfastLocked ? 'bg-amber-200 text-amber-900' : 'bg-emerald-100 text-emerald-800'
+                }`}>
+                  {breakfastLocked ? '🔒 লকড' : '🟢 উন্মুক্ত'}
+                </span>
+              </div>
             </div>
-            <p className="text-xs text-slate-600 mt-1">
-              {isAddedToSheet
-                ? 'এই তারিখের মিল গুগল শিটের Meals টেবিল এবং মাসিক রিপোর্টে সংরক্ষিত আছে। বুকিং বা লক পরিবর্তন হলে শিট আপডেট করতে পারেন।'
-                : 'মেম্বারদের বুকিং ও লক সাইটে সংরক্ষিত আছে। রান্নার চূড়ান্ত মিল গুগল শিটে যোগ করতে "শিটে যোগ করুন" বাটনে চাপুন।'}
+
+            <div className="mt-2">
+              <span className="text-3xl sm:text-4xl font-extrabold text-amber-600 tracking-tight">
+                {loading ? '...' : liveTotalBreakfast}
+              </span>
+              <span className="text-sm font-bold text-slate-500 ml-1.5">মিল</span>
+            </div>
+
+            <p className="text-xs text-slate-500 mt-1">
+              রেগুলার: <span className="font-bold text-slate-700">{liveBreakfastRegular}</span> + গেস্ট:{' '}
+              <span className="font-bold text-slate-700">{liveBreakfastGuests}</span>
             </p>
           </div>
-        </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
+          {/* Embedded Lock Button */}
           <button
             type="button"
-            onClick={handleAddToSheet}
-            disabled={syncingToSheet}
-            className={`px-5 py-2.5 rounded-xl font-bold text-xs shadow-md transition-all flex items-center space-x-2 ${
-              isAddedToSheet
-                ? 'bg-emerald-700 hover:bg-emerald-600 text-white'
-                : 'bg-emerald-600 hover:bg-emerald-500 text-white ring-2 ring-emerald-400/40'
+            disabled={processingLock}
+            onClick={() => handleToggleSessionLock('breakfast', !breakfastLocked)}
+            className={`w-full py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 ${
+              breakfastLocked
+                ? 'bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 shadow-sm'
+                : 'bg-amber-600 hover:bg-amber-500 text-white shadow-sm'
             }`}
           >
-            <FileSpreadsheet className="w-4 h-4" />
-            <span>{syncingToSheet ? 'শিটে যোগ হচ্ছে...' : isAddedToSheet ? '🔄 শিট আপডেট করুন (Update Sheet)' : '➕ শিটে যোগ করুন (Add to Sheet)'}</span>
-          </button>
-
-          {isAddedToSheet && (
-            <button
-              type="button"
-              onClick={handleRemoveFromSheet}
-              disabled={syncingToSheet}
-              className="px-4 py-2.5 rounded-xl font-bold text-xs bg-white hover:bg-red-50 text-red-700 border border-red-300 shadow-sm transition-all flex items-center space-x-1.5"
-            >
-              <span>🗑️ শিট থেকে সরান</span>
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Unsaved Changes Banner */}
-      {dirtyCount > 0 && (
-        <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md">
-          <div className="flex items-center space-x-2 text-emerald-900 text-xs font-bold">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
-            <span>⚠️ {dirtyCount} জন মেম্বারের মিলের মান পরিবর্তন করা হয়েছে (সংরক্ষণ বাকি)।</span>
-          </div>
-          <button
-            onClick={handleSaveAllDirty}
-            disabled={savingBulk}
-            className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow transition-all flex items-center space-x-1.5"
-          >
-            <Save className="w-4 h-4" />
-            <span>{savingBulk ? 'সংরক্ষণ হচ্ছে...' : 'সব পরিবর্তন সংরক্ষণ করুন (Save All)'}</span>
+            {breakfastLocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+            <span>{breakfastLocked ? 'নাস্তা আনলক করুন' : 'সকালের নাস্তা লক করুন'}</span>
           </button>
         </div>
-      )}
 
-      {/* Member Breakdown Table with Manager Controls */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden space-y-0">
-        <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50">
+        {/* Lunch Card */}
+        <div className={`p-5 rounded-3xl border shadow-sm transition-all flex flex-col justify-between space-y-4 ${
+          lunchLocked
+            ? 'bg-gradient-to-b from-blue-50/70 to-white border-blue-300'
+            : 'bg-white border-slate-200 hover:border-blue-300'
+        }`}>
           <div>
-            <h3 className="font-bold text-slate-800 text-base">
-              মেম্বারদের বিস্তারিত মিল তালিকা ({filteredMembers.length})
-            </h3>
-            <p className="text-xs text-slate-500">
-              ম্যানেজার সরাসরি যেকোনো মেম্বারের মিল অন/অফ করতে পারেন বা গেস্ট সংখ্যা পরিবর্তন করতে পারেন।
+            <div className="flex items-center justify-between text-slate-500 mb-1.5">
+              <span className="text-xs font-bold uppercase tracking-wider text-blue-800 flex items-center space-x-1.5">
+                <span>🍛 দুপুরের খাবার</span>
+              </span>
+              <div className="flex items-center space-x-1.5">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-900 border border-blue-200">
+                  {lWeight} pt
+                </span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                  lunchLocked ? 'bg-blue-200 text-blue-900' : 'bg-emerald-100 text-emerald-800'
+                }`}>
+                  {lunchLocked ? '🔒 লকড' : '🟢 উন্মুক্ত'}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-2">
+              <span className="text-3xl sm:text-4xl font-extrabold text-blue-600 tracking-tight">
+                {loading ? '...' : liveTotalLunch}
+              </span>
+              <span className="text-sm font-bold text-slate-500 ml-1.5">মিল</span>
+            </div>
+
+            <p className="text-xs text-slate-500 mt-1">
+              রেগুলার: <span className="font-bold text-slate-700">{liveLunchRegular}</span> + গেস্ট:{' '}
+              <span className="font-bold text-slate-700">{liveLunchGuests}</span>
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center gap-3">
-            {/* Filter Buttons */}
-            <div className="flex items-center space-x-1 bg-slate-200/70 p-1 rounded-xl">
+          {/* Embedded Lock Button */}
+          <button
+            type="button"
+            disabled={processingLock}
+            onClick={() => handleToggleSessionLock('lunch', !lunchLocked)}
+            className={`w-full py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 ${
+              lunchLocked
+                ? 'bg-white hover:bg-blue-100 text-blue-900 border border-blue-300 shadow-sm'
+                : 'bg-blue-600 hover:bg-blue-500 text-white shadow-sm'
+            }`}
+          >
+            {lunchLocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+            <span>{lunchLocked ? 'দুপুর আনলক করুন' : 'দুপুরের খাবার লক করুন'}</span>
+          </button>
+        </div>
+
+        {/* Dinner Card */}
+        <div className={`p-5 rounded-3xl border shadow-sm transition-all flex flex-col justify-between space-y-4 ${
+          dinnerLocked
+            ? 'bg-gradient-to-b from-purple-50/70 to-white border-purple-300'
+            : 'bg-white border-slate-200 hover:border-purple-300'
+        }`}>
+          <div>
+            <div className="flex items-center justify-between text-slate-500 mb-1.5">
+              <span className="text-xs font-bold uppercase tracking-wider text-purple-800 flex items-center space-x-1.5">
+                <span>🍲 রাতের খাবার</span>
+              </span>
+              <div className="flex items-center space-x-1.5">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-900 border border-purple-200">
+                  {dWeight} pt
+                </span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                  dinnerLocked ? 'bg-purple-200 text-purple-900' : 'bg-emerald-100 text-emerald-800'
+                }`}>
+                  {dinnerLocked ? '🔒 লকড' : '🟢 উন্মুক্ত'}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-2">
+              <span className="text-3xl sm:text-4xl font-extrabold text-purple-600 tracking-tight">
+                {loading ? '...' : liveTotalDinner}
+              </span>
+              <span className="text-sm font-bold text-slate-500 ml-1.5">মিল</span>
+            </div>
+
+            <p className="text-xs text-slate-500 mt-1">
+              রেগুলার: <span className="font-bold text-slate-700">{liveDinnerRegular}</span> + গেস্ট:{' '}
+              <span className="font-bold text-slate-700">{liveDinnerGuests}</span>
+            </p>
+          </div>
+
+          {/* Embedded Lock Button */}
+          <button
+            type="button"
+            disabled={processingLock}
+            onClick={() => handleToggleSessionLock('dinner', !dinnerLocked)}
+            className={`w-full py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 ${
+              dinnerLocked
+                ? 'bg-white hover:bg-purple-100 text-purple-900 border border-purple-300 shadow-sm'
+                : 'bg-purple-600 hover:bg-purple-500 text-white shadow-sm'
+            }`}
+          >
+            {dinnerLocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+            <span>{dinnerLocked ? 'রাত আনলক করুন' : 'রাতের খাবার লক করুন'}</span>
+          </button>
+        </div>
+
+        {/* Guest Meals Summary Card */}
+        <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4 hover:border-indigo-300 transition-colors">
+          <div>
+            <div className="flex items-center justify-between text-slate-500 mb-1.5">
+              <span className="text-xs font-bold uppercase tracking-wider text-indigo-800 flex items-center space-x-1.5">
+                <Users className="w-3.5 h-3.5" />
+                <span>মেহমান মিল</span>
+              </span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-900 border border-indigo-200">
+                {Math.round(liveGuestPoints * 10) / 10} Pt
+              </span>
+            </div>
+
+            <div className="mt-2">
+              <span className="text-3xl sm:text-4xl font-extrabold text-indigo-600 tracking-tight">
+                {loading ? '...' : liveGuests}
+              </span>
+              <span className="text-sm font-bold text-slate-500 ml-1.5">টি</span>
+            </div>
+
+            <p className="text-xs text-slate-500 mt-1">
+              সকালে: <span className="font-bold text-slate-700">{liveBreakfastGuests}</span> | দুপুরে:{' '}
+              <span className="font-bold text-slate-700">{liveLunchGuests}</span> | রাতে:{' '}
+              <span className="font-bold text-slate-700">{liveDinnerGuests}</span>
+            </p>
+          </div>
+
+          <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-[11px] text-slate-600 text-center font-medium">
+            💡 মেম্বার তালিকা থেকে <span className="text-purple-700 font-bold">+গেস্ট</span> বাটনে পরিবর্তন করুন।
+          </div>
+        </div>
+      </div>
+
+      {/* 4. Meal Point Weights Drawer (Clean & Collapsible) */}
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden transition-all">
+        <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/60">
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 bg-indigo-50 text-indigo-700 rounded-2xl border border-indigo-200">
+              <Settings2 className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h4 className="font-bold text-slate-900 text-sm">মিলের পয়েন্ট সেটিংস (Meal Point Values)</h4>
+                <span className="text-[10px] font-semibold text-slate-500">
+                  সকাল: <b className="text-amber-800">{bWeight}</b> | দুপুর: <b className="text-blue-800">{lWeight}</b> | রাত: <b className="text-purple-800">{dWeight}</b>
+                  {showCustomGuestWeights && ` (গেস্ট: ${guestBWeight}/${guestLWeight}/${guestDWeight})`}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                সকাল, দুপুর বা রাতের মিলের হিসাব পয়েন্ট (ওজন) পরিবর্তন করতে পারেন।
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsWeightSettingsOpen(!isWeightSettingsOpen)}
+            className="px-3.5 py-2 bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs rounded-xl border border-slate-300 shadow-sm transition-all flex items-center justify-center space-x-1.5 self-start sm:self-auto"
+          >
+            <Sliders className="w-3.5 h-3.5 text-indigo-600" />
+            <span>{isWeightSettingsOpen ? 'পয়েন্ট বক্স লুকান' : 'পয়েন্ট পরিবর্তন করুন'}</span>
+            {isWeightSettingsOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
+        </div>
+
+        {/* Collapsible Weights Form */}
+        {isWeightSettingsOpen && (
+          <div className="p-5 border-t border-slate-200 bg-white space-y-5 animate-in fade-in duration-150">
+            {/* Regular Weights */}
+            <div>
+              <h5 className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3 flex items-center space-x-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>মেম্বারদের স্বাভাবিক মিলের পয়েন্ট:</span>
+              </h5>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* B */}
+                <div className="p-3 bg-amber-50/60 rounded-2xl border border-amber-200 flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-bold text-amber-900 block">🍳 সকালের নাস্তা (B)</span>
+                    <span className="text-[10px] text-slate-500">ডিফল্ট: ০.৫</span>
+                  </div>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={bWeight}
+                    onChange={(e) => {
+                      const val = Math.max(0, parseFloat(e.target.value) || 0);
+                      setBWeight(val);
+                      if (!showCustomGuestWeights) setGuestBWeight(val);
+                    }}
+                    className="w-16 text-center py-1 bg-white border border-amber-300 rounded-xl font-black text-amber-900 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none shadow-inner"
+                  />
+                </div>
+
+                {/* L */}
+                <div className="p-3 bg-blue-50/60 rounded-2xl border border-blue-200 flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-bold text-blue-900 block">🍛 দুপুরের খাবার (L)</span>
+                    <span className="text-[10px] text-slate-500">ডিফল্ট: ১.০</span>
+                  </div>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={lWeight}
+                    onChange={(e) => {
+                      const val = Math.max(0, parseFloat(e.target.value) || 0);
+                      setLWeight(val);
+                      if (!showCustomGuestWeights) setGuestLWeight(val);
+                    }}
+                    className="w-16 text-center py-1 bg-white border border-blue-300 rounded-xl font-black text-blue-900 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none shadow-inner"
+                  />
+                </div>
+
+                {/* D */}
+                <div className="p-3 bg-purple-50/60 rounded-2xl border border-purple-200 flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-bold text-purple-900 block">🍲 রাতের খাবার (D)</span>
+                    <span className="text-[10px] text-slate-500">ডিফল্ট: ১.০</span>
+                  </div>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={dWeight}
+                    onChange={(e) => {
+                      const val = Math.max(0, parseFloat(e.target.value) || 0);
+                      setDWeight(val);
+                      if (!showCustomGuestWeights) setGuestDWeight(val);
+                    }}
+                    className="w-16 text-center py-1 bg-white border border-purple-300 rounded-xl font-black text-purple-900 text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none shadow-inner"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Custom Guest Weights Toggle */}
+            <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <label className="flex items-center space-x-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showCustomGuestWeights}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setShowCustomGuestWeights(checked);
+                    if (!checked) {
+                      setGuestBWeight(bWeight);
+                      setGuestLWeight(lWeight);
+                      setGuestDWeight(dWeight);
+                    }
+                  }}
+                  className="w-4 h-4 text-purple-600 rounded border-slate-300 focus:ring-purple-500 cursor-pointer"
+                />
+                <span className="text-xs font-bold text-slate-800">
+                  👥 মেহমানের জন্য প্রতি বেলায় আলাদা পয়েন্ট সেট করতে চান?
+                </span>
+              </label>
+
+              <button
+                type="button"
+                onClick={handleApplyWeightsToAll}
+                disabled={savingBulk}
+                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center space-x-1.5 self-end sm:self-auto"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>{savingBulk ? 'সংরক্ষণ হচ্ছে...' : 'নতুন পয়েন্ট সেভ করুন'}</span>
+              </button>
+            </div>
+
+            {/* Custom Guest Weights Form */}
+            {showCustomGuestWeights && (
+              <div className="p-4 bg-purple-50/50 rounded-2xl border border-purple-200 space-y-2 animate-in fade-in duration-150">
+                <span className="text-xs font-bold text-purple-900 block">মেহমান (Guest) মিলের আলাদা পয়েন্ট:</span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-purple-200">
+                    <span className="text-xs font-bold text-slate-700">সকালে গেস্ট</span>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={guestBWeight}
+                      onChange={(e) => setGuestBWeight(Math.max(0, parseFloat(e.target.value) || 0))}
+                      className="w-16 text-center py-1 bg-purple-50 border border-purple-300 rounded-lg font-bold text-purple-900 text-xs focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-purple-200">
+                    <span className="text-xs font-bold text-slate-700">দুপুরে গেস্ট</span>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={guestLWeight}
+                      onChange={(e) => setGuestLWeight(Math.max(0, parseFloat(e.target.value) || 0))}
+                      className="w-16 text-center py-1 bg-purple-50 border border-purple-300 rounded-lg font-bold text-purple-900 text-xs focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-purple-200">
+                    <span className="text-xs font-bold text-slate-700">রাতে গেস্ট</span>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={guestDWeight}
+                      onChange={(e) => setGuestDWeight(Math.max(0, parseFloat(e.target.value) || 0))}
+                      className="w-16 text-center py-1 bg-purple-50 border border-purple-300 rounded-lg font-bold text-purple-900 text-xs focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* 5. Member Meal Table Section */}
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden space-y-0">
+        {/* Table Toolbar */}
+        <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/50">
+          <div className="space-y-1">
+            <div className="flex items-center space-x-2">
+              <h3 className="font-extrabold text-slate-900 text-base">
+                মেম্বারদের বিস্তারিত মিল তালিকা
+              </h3>
+              <span className="text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-700">
+                {filteredMembers.length} জন
+              </span>
+            </div>
+            <p className="text-xs text-slate-500">
+              যেকোনো বেলার মিল এক ক্লিকে অন/অফ করতে পারেন অথবা গেস্ট সংখ্যা সামঞ্জস্য করতে পারেন।
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Filter Tabs */}
+            <div className="flex items-center space-x-1 bg-slate-200/70 p-1 rounded-2xl">
               <button
                 type="button"
                 onClick={() => setFilterType('ALL')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                  filterType === 'ALL' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  filterType === 'ALL' ? 'bg-white text-slate-900 shadow-sm font-extrabold' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                সবাই
+                সবাই ({membersState.length})
               </button>
               <button
                 type="button"
                 onClick={() => setFilterType('EATING')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                  filterType === 'EATING' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600'
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  filterType === 'EATING' ? 'bg-white text-emerald-700 shadow-sm font-extrabold' : 'text-slate-600 hover:text-emerald-700'
                 }`}
               >
-                মিল খাবে
+                মিল খাবে ({eatingCount})
               </button>
               <button
                 type="button"
                 onClick={() => setFilterType('OFF')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                  filterType === 'OFF' ? 'bg-white text-red-700 shadow-sm' : 'text-slate-600'
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  filterType === 'OFF' ? 'bg-white text-red-700 shadow-sm font-extrabold' : 'text-slate-600 hover:text-red-700'
                 }`}
               >
-                মিল অফ
+                মিল অফ ({offCount})
               </button>
             </div>
 
-            {/* Guest weights toggle button */}
-            <button
-              type="button"
-              onClick={() => {
-                const next = !showCustomGuestWeights;
-                setShowCustomGuestWeights(next);
-                if (!next) {
-                  setGuestBWeight(bWeight);
-                  setGuestLWeight(lWeight);
-                  setGuestDWeight(dWeight);
-                }
-              }}
-              className={`px-3 py-2 rounded-xl font-bold text-xs shadow-sm transition-all flex items-center space-x-1.5 whitespace-nowrap border ${
-                showCustomGuestWeights
-                  ? 'bg-purple-100 text-purple-900 border-purple-300 ring-2 ring-purple-200'
-                  : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
-              }`}
-              title="প্রয়োজন হলে প্রতি বেলার গেস্ট মিলের আলাদা পয়েন্ট সেট করুন"
-            >
-              <Sliders className="w-3.5 h-3.5 text-purple-600" />
-              <span>{showCustomGuestWeights ? '👥 গেস্টের আলাদা মান (চালু)' : '👥 গেস্টের আলাদা মান'}</span>
-            </button>
-
-            {/* Save weights button */}
-            <button
-              type="button"
-              onClick={handleApplyWeightsToAll}
-              disabled={savingBulk}
-              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center space-x-1.5 whitespace-nowrap"
-              title="টেবিল হেডারের নতুন মান সবার জন্য সংরক্ষণ করুন"
-            >
-              <Save className="w-3.5 h-3.5 text-emerald-400" />
-              <span>{savingBulk ? 'সংরক্ষণ হচ্ছে...' : 'নতুন মান সেভ করুন'}</span>
-            </button>
-
-            {/* Search Input */}
-            <div className="relative w-full sm:w-60">
+            {/* Search Box */}
+            <div className="relative w-full sm:w-56">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="নাম বা রুম খুঁজুন..."
-                className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 shadow-sm"
+                placeholder="নাম, রুম বা কোড..."
+                className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 shadow-sm"
               />
             </div>
+
+            {/* Save All Button (when dirty) */}
+            {dirtyCount > 0 && (
+              <button
+                type="button"
+                onClick={handleSaveAllDirty}
+                disabled={savingBulk}
+                className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center space-x-1.5 animate-pulse"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>{savingBulk ? 'সেভ হচ্ছে...' : `সব সেভ (${dirtyCount})`}</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Table with Clickable Toggles */}
+        {/* Member Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider">
               <tr>
                 <th className="py-3 px-4">রুম নং</th>
-                <th className="py-3 px-4">সদস্যের নাম</th>
+                <th className="py-3 px-4">সদস্যের নাম ও বিবরণ</th>
                 <th className="py-3 px-3 text-center">
-                  <div className="flex flex-col items-center justify-center space-y-1">
-                    <span className="font-extrabold text-slate-800 text-xs">🍳 সকাল (B)</span>
-                    <div className="flex items-center space-x-1" title="সকালের মিলের মান সেট করুন">
-                      <span className="text-[10px] text-slate-400 font-semibold">{showCustomGuestWeights ? 'সদস্য:' : 'মান:'}</span>
-                      <input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        value={bWeight}
-                        onChange={(e) => {
-                          const val = Math.max(0, parseFloat(e.target.value) || 0);
-                          setBWeight(val);
-                          if (!showCustomGuestWeights) setGuestBWeight(val);
-                        }}
-                        className="w-14 text-center py-0.5 px-1 bg-white border border-amber-400 rounded-lg font-black text-amber-900 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none shadow-inner"
-                      />
-                    </div>
-                    {showCustomGuestWeights && (
-                      <div className="flex items-center space-x-1 animate-in fade-in duration-150" title="সকালে গেস্ট মিলের আলাদা মান সেট করুন">
-                        <span className="text-[10px] text-purple-700 font-bold">গেস্ট:</span>
-                        <input
-                          type="number"
-                          step="0.1"
-                          min="0"
-                          value={guestBWeight}
-                          onChange={(e) => setGuestBWeight(Math.max(0, parseFloat(e.target.value) || 0))}
-                          className="w-14 text-center py-0.5 px-1 bg-purple-50 border border-purple-400 rounded-lg font-black text-purple-900 text-xs focus:ring-2 focus:ring-purple-500 focus:outline-none shadow-inner"
-                        />
-                      </div>
-                    )}
+                  <div className="flex flex-col items-center">
+                    <span className="font-extrabold text-slate-800 text-xs">🍳 সকাল</span>
+                    <span className="text-[10px] text-amber-700 font-semibold">{bWeight} pt</span>
                   </div>
                 </th>
                 <th className="py-3 px-3 text-center">
-                  <div className="flex flex-col items-center justify-center space-y-1">
-                    <span className="font-extrabold text-slate-800 text-xs">🍛 দুপুর (L)</span>
-                    <div className="flex items-center space-x-1" title="দুপুরের মিলের মান সেট করুন">
-                      <span className="text-[10px] text-slate-400 font-semibold">{showCustomGuestWeights ? 'সদস্য:' : 'মান:'}</span>
-                      <input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        value={lWeight}
-                        onChange={(e) => {
-                          const val = Math.max(0, parseFloat(e.target.value) || 0);
-                          setLWeight(val);
-                          if (!showCustomGuestWeights) setGuestLWeight(val);
-                        }}
-                        className="w-14 text-center py-0.5 px-1 bg-white border border-blue-400 rounded-lg font-black text-blue-900 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none shadow-inner"
-                      />
-                    </div>
-                    {showCustomGuestWeights && (
-                      <div className="flex items-center space-x-1 animate-in fade-in duration-150" title="দুপুরে গেস্ট মিলের আলাদা মান সেট করুন">
-                        <span className="text-[10px] text-purple-700 font-bold">গেস্ট:</span>
-                        <input
-                          type="number"
-                          step="0.1"
-                          min="0"
-                          value={guestLWeight}
-                          onChange={(e) => setGuestLWeight(Math.max(0, parseFloat(e.target.value) || 0))}
-                          className="w-14 text-center py-0.5 px-1 bg-purple-50 border border-purple-400 rounded-lg font-black text-purple-900 text-xs focus:ring-2 focus:ring-purple-500 focus:outline-none shadow-inner"
-                        />
-                      </div>
-                    )}
+                  <div className="flex flex-col items-center">
+                    <span className="font-extrabold text-slate-800 text-xs">🍛 দুপুর</span>
+                    <span className="text-[10px] text-blue-700 font-semibold">{lWeight} pt</span>
                   </div>
                 </th>
                 <th className="py-3 px-3 text-center">
-                  <div className="flex flex-col items-center justify-center space-y-1">
-                    <span className="font-extrabold text-slate-800 text-xs">🍲 রাত (D)</span>
-                    <div className="flex items-center space-x-1" title="রাতের মিলের মান সেট করুন">
-                      <span className="text-[10px] text-slate-400 font-semibold">{showCustomGuestWeights ? 'সদস্য:' : 'মান:'}</span>
-                      <input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        value={dWeight}
-                        onChange={(e) => {
-                          const val = Math.max(0, parseFloat(e.target.value) || 0);
-                          setDWeight(val);
-                          if (!showCustomGuestWeights) setGuestDWeight(val);
-                        }}
-                        className="w-14 text-center py-0.5 px-1 bg-white border border-purple-400 rounded-lg font-black text-purple-900 text-xs focus:ring-2 focus:ring-purple-500 focus:outline-none shadow-inner"
-                      />
-                    </div>
-                    {showCustomGuestWeights && (
-                      <div className="flex items-center space-x-1 animate-in fade-in duration-150" title="রাতে গেস্ট মিলের আলাদা মান সেট করুন">
-                        <span className="text-[10px] text-purple-700 font-bold">গেস্ট:</span>
-                        <input
-                          type="number"
-                          step="0.1"
-                          min="0"
-                          value={guestDWeight}
-                          onChange={(e) => setGuestDWeight(Math.max(0, parseFloat(e.target.value) || 0))}
-                          className="w-14 text-center py-0.5 px-1 bg-purple-50 border border-purple-400 rounded-lg font-black text-purple-900 text-xs focus:ring-2 focus:ring-purple-500 focus:outline-none shadow-inner"
-                        />
-                      </div>
-                    )}
+                  <div className="flex flex-col items-center">
+                    <span className="font-extrabold text-slate-800 text-xs">🍲 রাত</span>
+                    <span className="text-[10px] text-purple-700 font-semibold">{dWeight} pt</span>
                   </div>
                 </th>
+                <th className="py-3 px-3 text-center">👥 মেহমান</th>
                 <th className="py-3 px-3 text-center">📊 মোট মিল</th>
                 <th className="py-3 px-4">বার্তা / নোট</th>
                 <th className="py-3 px-4 text-center">অ্যাকশন</th>
@@ -1220,75 +1295,86 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-slate-500">
-                    লোড হচ্ছে...
+                  <td colSpan={9} className="py-12 text-center text-slate-500">
+                    <div className="flex flex-col items-center justify-center space-y-2">
+                      <RefreshCw className="w-6 h-6 animate-spin text-emerald-600" />
+                      <span className="text-xs font-bold">রান্নার ডেটা লোড হচ্ছে...</span>
+                    </div>
                   </td>
                 </tr>
               ) : filteredMembers.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-slate-500">
-                    কোনো সদস্য পাওয়া যায়নি।
+                  <td colSpan={9} className="py-10 text-center text-slate-500">
+                    <div className="max-w-xs mx-auto space-y-1">
+                      <p className="font-bold text-slate-700">কোনো মেম্বার পাওয়া যায়নি।</p>
+                      <p className="text-xs text-slate-400">ফিল্টার বা সার্চ কিওয়ার্ড পরিবর্তন করে দেখুন।</p>
+                    </div>
                   </td>
                 </tr>
               ) : (
                 filteredMembers.map((m) => {
-                  const isOffAll = !m.breakfast && !m.lunch && !m.dinner && m.guestCount === 0;
+                  const isOffAll = !m.breakfast && !m.lunch && !m.dinner && (Number(m.guestCount) || 0) === 0;
                   const isDirty = Boolean(dirtyMap[m.memberId]);
                   const rowMealTotal = calculateMemberMealTotal(m);
+                  const totalGuests = (Number(m.guestBreakfast) || 0) + (Number(m.guestLunch) || 0) + (Number(m.guestDinner) || 0) || (Number(m.guestCount) || 0);
 
                   return (
                     <tr
                       key={m.memberId}
-                      className={`hover:bg-slate-50/80 transition-colors ${
-                        isDirty ? 'bg-amber-50/40' : isOffAll ? 'bg-red-50/20 text-slate-400' : ''
+                      className={`hover:bg-slate-50 transition-colors ${
+                        isDirty
+                          ? 'bg-amber-50/50'
+                          : isOffAll
+                          ? 'bg-red-50/20 text-slate-400'
+                          : ''
                       }`}
                     >
                       {/* Room */}
-                      <td className="py-3.5 px-4 font-bold text-slate-800">
-                        Room {m.roomNo}
+                      <td className="py-3 px-4">
+                        <span className="inline-block px-2.5 py-1 rounded-xl bg-slate-100 border border-slate-200 text-slate-800 font-bold text-xs shadow-xs">
+                          {m.roomNo ? `রুম ${m.roomNo}` : 'রুম -'}
+                        </span>
                       </td>
 
                       {/* Name & Phone */}
-                      <td className="py-3.5 px-4">
-                        <div className="font-bold text-slate-900 text-sm">{m.name}</div>
-                        <div className="text-[11px] text-slate-500 flex items-center space-x-1">
-                          <span>{m.memberCode}</span>
+                      <td className="py-3 px-4">
+                        <div className="font-bold text-slate-900 text-sm flex items-center space-x-1.5">
+                          <span>{m.name}</span>
+                          {isOffAll && (
+                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-red-100 text-red-700 font-bold">
+                              মিল অফ
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-slate-500 flex items-center space-x-1.5 mt-0.5">
+                          <span className="font-medium">{m.memberCode}</span>
                           <span>•</span>
                           <span>{m.phone}</span>
-                          <span>•</span>
-                          <button
-                            type="button"
-                            onClick={() => openGuestModal(m)}
-                            className="text-purple-600 hover:text-purple-800 hover:underline font-bold text-[10px]"
-                            title="বেলা অনুযায়ী মেহমান মিল পরিবর্তন করুন"
-                          >
-                            +গেস্ট
-                          </button>
                         </div>
                       </td>
 
-                      {/* Breakfast Toggle Button */}
-                      <td className="py-3.5 px-3 text-center">
+                      {/* Breakfast Toggle */}
+                      <td className="py-3 px-3 text-center">
                         <div className="flex flex-col items-center justify-center space-y-1">
                           <button
                             type="button"
                             onClick={() => handleToggleMeal(m.memberId, 'breakfast')}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shadow-sm flex items-center justify-center space-x-1 mx-auto min-w-[72px] ${
+                            className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shadow-xs flex items-center justify-center space-x-1 min-w-[72px] ${
                               m.breakfast
-                                ? 'bg-amber-500 text-white hover:bg-amber-600'
-                                : 'bg-slate-100 text-slate-500 hover:bg-slate-200 border border-slate-200'
+                                ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20'
+                                : 'bg-slate-100 text-slate-400 hover:bg-slate-200 border border-slate-200'
                             }`}
-                            title="ক্লিক করে সকালের মিল অন/অফ করুন"
+                            title="সকালের মিল অন/অফ করতে ক্লিক করুন"
                           >
-                            <span>{m.breakfast ? '✅' : '❌'}</span>
-                            <span>{m.breakfast ? `${bWeight}` : '০'}</span>
+                            <span>{m.breakfast ? '✓' : '✕'}</span>
+                            <span>{m.breakfast ? `${bWeight}` : 'অফ'}</span>
                           </button>
                           {Number(m.guestBreakfast) > 0 && (
                             <button
                               type="button"
                               onClick={() => openGuestModal(m)}
-                              className="text-[10px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 px-1.5 py-0.5 rounded border border-amber-200 transition-colors"
-                              title={`সকালে ${m.guestBreakfast} গেস্ট × ${effGuestB} = ${(Number(m.guestBreakfast) * effGuestB).toFixed(1)} পয়েন্ট`}
+                              className="text-[10px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 px-1.5 py-0.5 rounded-md border border-amber-200"
+                              title={`সকালে ${m.guestBreakfast} গেস্ট`}
                             >
                               +{m.guestBreakfast} গেস্ট
                             </button>
@@ -1296,28 +1382,28 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
                         </div>
                       </td>
 
-                      {/* Lunch Toggle Button */}
-                      <td className="py-3.5 px-3 text-center">
+                      {/* Lunch Toggle */}
+                      <td className="py-3 px-3 text-center">
                         <div className="flex flex-col items-center justify-center space-y-1">
                           <button
                             type="button"
                             onClick={() => handleToggleMeal(m.memberId, 'lunch')}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shadow-sm flex items-center justify-center space-x-1 mx-auto min-w-[72px] ${
+                            className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shadow-xs flex items-center justify-center space-x-1 min-w-[72px] ${
                               m.lunch
-                                ? 'bg-blue-600 text-white hover:bg-blue-700'
-                                : 'bg-slate-100 text-slate-500 hover:bg-slate-200 border border-slate-200'
+                                ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20'
+                                : 'bg-slate-100 text-slate-400 hover:bg-slate-200 border border-slate-200'
                             }`}
-                            title="ক্লিক করে দুপুরের মিল অন/অফ করুন"
+                            title="দুপুরের মিল অন/অফ করতে ক্লিক করুন"
                           >
-                            <span>{m.lunch ? '✅' : '❌'}</span>
-                            <span>{m.lunch ? `${lWeight}` : '০'}</span>
+                            <span>{m.lunch ? '✓' : '✕'}</span>
+                            <span>{m.lunch ? `${lWeight}` : 'অফ'}</span>
                           </button>
                           {Number(m.guestLunch) > 0 && (
                             <button
                               type="button"
                               onClick={() => openGuestModal(m)}
-                              className="text-[10px] font-bold text-blue-800 bg-blue-50 hover:bg-blue-100 px-1.5 py-0.5 rounded border border-blue-200 transition-colors"
-                              title={`দুপুরে ${m.guestLunch} গেস্ট × ${effGuestL} = ${(Number(m.guestLunch) * effGuestL).toFixed(1)} পয়েন্ট`}
+                              className="text-[10px] font-bold text-blue-800 bg-blue-50 hover:bg-blue-100 px-1.5 py-0.5 rounded-md border border-blue-200"
+                              title={`দুপুরে ${m.guestLunch} গেস্ট`}
                             >
                               +{m.guestLunch} গেস্ট
                             </button>
@@ -1325,28 +1411,28 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
                         </div>
                       </td>
 
-                      {/* Dinner Toggle Button */}
-                      <td className="py-3.5 px-3 text-center">
+                      {/* Dinner Toggle */}
+                      <td className="py-3 px-3 text-center">
                         <div className="flex flex-col items-center justify-center space-y-1">
                           <button
                             type="button"
                             onClick={() => handleToggleMeal(m.memberId, 'dinner')}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shadow-sm flex items-center justify-center space-x-1 mx-auto min-w-[72px] ${
+                            className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shadow-xs flex items-center justify-center space-x-1 min-w-[72px] ${
                               m.dinner
-                                ? 'bg-purple-600 text-white hover:bg-purple-700'
-                                : 'bg-slate-100 text-slate-500 hover:bg-slate-200 border border-slate-200'
+                                ? 'bg-purple-600 hover:bg-purple-700 text-white shadow-purple-500/20'
+                                : 'bg-slate-100 text-slate-400 hover:bg-slate-200 border border-slate-200'
                             }`}
-                            title="ক্লিক করে রাতের মিল অন/অফ করুন"
+                            title="রাতের মিল অন/অফ করতে ক্লিক করুন"
                           >
-                            <span>{m.dinner ? '✅' : '❌'}</span>
-                            <span>{m.dinner ? `${dWeight}` : '০'}</span>
+                            <span>{m.dinner ? '✓' : '✕'}</span>
+                            <span>{m.dinner ? `${dWeight}` : 'অফ'}</span>
                           </button>
                           {Number(m.guestDinner) > 0 && (
                             <button
                               type="button"
                               onClick={() => openGuestModal(m)}
-                              className="text-[10px] font-bold text-purple-800 bg-purple-50 hover:bg-purple-100 px-1.5 py-0.5 rounded border border-purple-200 transition-colors"
-                              title={`রাতে ${m.guestDinner} গেস্ট × ${effGuestD} = ${(Number(m.guestDinner) * effGuestD).toFixed(1)} পয়েন্ট`}
+                              className="text-[10px] font-bold text-purple-800 bg-purple-50 hover:bg-purple-100 px-1.5 py-0.5 rounded-md border border-purple-200"
+                              title={`রাতে ${m.guestDinner} গেস্ট`}
                             >
                               +{m.guestDinner} গেস্ট
                             </button>
@@ -1354,41 +1440,61 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
                         </div>
                       </td>
 
-                      {/* Total Calculated Meal Value */}
-                      <td className="py-3.5 px-3 text-center font-extrabold text-sm text-slate-900">
-                        <span className={`px-2.5 py-0.5 rounded-lg border ${
+                      {/* Guest Button / Trigger */}
+                      <td className="py-3 px-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => openGuestModal(m)}
+                          className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all border flex items-center justify-center space-x-1 mx-auto ${
+                            totalGuests > 0
+                              ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200 shadow-xs'
+                              : 'bg-white hover:bg-slate-100 text-slate-500 border-slate-200'
+                          }`}
+                          title="মেহমান মিল যোগ বা পরিবর্তন করুন"
+                        >
+                          <Users className="w-3 h-3" />
+                          <span>{totalGuests > 0 ? `${totalGuests} মেহমান` : '+ গেস্ট'}</span>
+                        </button>
+                      </td>
+
+                      {/* Total Points */}
+                      <td className="py-3 px-3 text-center">
+                        <span className={`inline-block px-2.5 py-1 rounded-xl border font-black text-xs ${
                           rowMealTotal > 0
-                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200 shadow-xs'
                             : 'bg-slate-100 text-slate-400 border-slate-200'
                         }`}>
-                          {rowMealTotal}
+                          {rowMealTotal} pt
                         </span>
                       </td>
 
                       {/* Member Note */}
-                      <td className="py-3.5 px-4 text-slate-600 italic">
+                      <td className="py-3 px-4 text-slate-600 max-w-xs truncate">
                         {m.note ? (
-                          <span className="text-slate-800 font-medium">"{m.note}"</span>
+                          <span className="italic text-slate-800 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100 block truncate" title={m.note}>
+                            "{m.note}"
+                          </span>
                         ) : (
-                          <span className="text-slate-400">-</span>
+                          <span className="text-slate-300">-</span>
                         )}
                       </td>
 
-                      {/* Action */}
-                      <td className="py-3.5 px-4 text-center">
+                      {/* Row Action */}
+                      <td className="py-3 px-4 text-center">
                         {isDirty ? (
                           <button
                             type="button"
                             disabled={savingRowId === m.memberId}
                             onClick={() => handleSaveMember(m.memberId)}
-                            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] rounded-lg shadow-sm transition-all flex items-center space-x-1 mx-auto"
+                            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center space-x-1 mx-auto"
                           >
                             <Save className="w-3 h-3" />
                             <span>{savingRowId === m.memberId ? '...' : 'সেভ'}</span>
                           </button>
                         ) : (
-                          <span className="text-[10px] text-slate-400 font-semibold">
-                            সেভড
+                          <span className="text-[11px] text-emerald-600 font-bold flex items-center justify-center space-x-0.5">
+                            <Check className="w-3 h-3" />
+                            <span>সেভড</span>
                           </span>
                         )}
                       </td>
@@ -1401,25 +1507,48 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
         </div>
       </div>
 
-      {/* Guest Breakdown Modal */}
+      {/* 6. Sticky Floating Unsaved Changes Notification */}
+      {dirtyCount > 0 && (
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-40 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-700 flex items-center space-x-4 animate-in slide-in-from-bottom-3 duration-200">
+          <div className="flex items-center space-x-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+            <span className="text-xs font-bold text-slate-200">
+              ⚠️ {dirtyCount} জন মেম্বারের মিল পরিবর্তন করা হয়েছে (সংরক্ষণ বাকি)।
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleSaveAllDirty}
+            disabled={savingBulk}
+            className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold rounded-xl shadow transition-all flex items-center space-x-1.5"
+          >
+            <Save className="w-3.5 h-3.5" />
+            <span>{savingBulk ? 'সেভ হচ্ছে...' : 'সব সেভ করুন (Save All)'}</span>
+          </button>
+        </div>
+      )}
+
+      {/* 7. Guest Breakdown Modal */}
       {guestModalMember && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 space-y-5 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="font-extrabold text-slate-900 text-base">বেলা অনুযায়ী মেহমান মিল</h3>
-                <p className="text-xs text-slate-500 font-medium">{guestModalMember.name} (রুম {guestModalMember.roomNo})</p>
+                <p className="text-xs text-slate-500 font-medium">
+                  {guestModalMember.name} ({guestModalMember.roomNo ? `রুম ${guestModalMember.roomNo}` : guestModalMember.memberCode})
+                </p>
               </div>
-              <span className="p-2 bg-purple-100 text-purple-700 rounded-xl">
+              <span className="p-2.5 bg-purple-100 text-purple-700 rounded-2xl">
                 <Users className="w-5 h-5" />
               </span>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3.5">
               {/* Breakfast Guest */}
-              <div className="flex items-center justify-between p-3 bg-amber-50/60 rounded-2xl border border-amber-200">
-                <div className="flex items-center space-x-2">
-                  <span className="text-lg">🍳</span>
+              <div className="flex items-center justify-between p-3.5 bg-amber-50/60 rounded-2xl border border-amber-200">
+                <div className="flex items-center space-x-2.5">
+                  <span className="text-xl">🍳</span>
                   <div>
                     <h5 className="font-bold text-xs text-slate-800">সকালের নাস্তায় মেহমান</h5>
                     <span className="text-[10px] text-slate-500">
@@ -1432,7 +1561,7 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
                     type="button"
                     disabled={modalGuestB <= 0}
                     onClick={() => setModalGuestB(Math.max(0, modalGuestB - 1))}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-bold"
+                    className="w-7 h-7 flex items-center justify-center rounded-xl bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-bold transition-colors"
                   >
                     <Minus className="w-3.5 h-3.5 text-slate-700" />
                   </button>
@@ -1441,7 +1570,7 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
                     type="button"
                     disabled={modalGuestB >= 20}
                     onClick={() => setModalGuestB(modalGuestB + 1)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-bold"
+                    className="w-7 h-7 flex items-center justify-center rounded-xl bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-bold transition-colors"
                   >
                     <Plus className="w-3.5 h-3.5 text-slate-700" />
                   </button>
@@ -1449,9 +1578,9 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
               </div>
 
               {/* Lunch Guest */}
-              <div className="flex items-center justify-between p-3 bg-blue-50/60 rounded-2xl border border-blue-200">
-                <div className="flex items-center space-x-2">
-                  <span className="text-lg">🍛</span>
+              <div className="flex items-center justify-between p-3.5 bg-blue-50/60 rounded-2xl border border-blue-200">
+                <div className="flex items-center space-x-2.5">
+                  <span className="text-xl">🍛</span>
                   <div>
                     <h5 className="font-bold text-xs text-slate-800">দুপুরের খাবারে মেহমান</h5>
                     <span className="text-[10px] text-slate-500">
@@ -1464,7 +1593,7 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
                     type="button"
                     disabled={modalGuestL <= 0}
                     onClick={() => setModalGuestL(Math.max(0, modalGuestL - 1))}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-bold"
+                    className="w-7 h-7 flex items-center justify-center rounded-xl bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-bold transition-colors"
                   >
                     <Minus className="w-3.5 h-3.5 text-slate-700" />
                   </button>
@@ -1473,7 +1602,7 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
                     type="button"
                     disabled={modalGuestL >= 20}
                     onClick={() => setModalGuestL(modalGuestL + 1)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-bold"
+                    className="w-7 h-7 flex items-center justify-center rounded-xl bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-bold transition-colors"
                   >
                     <Plus className="w-3.5 h-3.5 text-slate-700" />
                   </button>
@@ -1481,9 +1610,9 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
               </div>
 
               {/* Dinner Guest */}
-              <div className="flex items-center justify-between p-3 bg-purple-50/60 rounded-2xl border border-purple-200">
-                <div className="flex items-center space-x-2">
-                  <span className="text-lg">🍲</span>
+              <div className="flex items-center justify-between p-3.5 bg-purple-50/60 rounded-2xl border border-purple-200">
+                <div className="flex items-center space-x-2.5">
+                  <span className="text-xl">🍲</span>
                   <div>
                     <h5 className="font-bold text-xs text-slate-800">রাতের খাবারে মেহমান</h5>
                     <span className="text-[10px] text-slate-500">
@@ -1496,7 +1625,7 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
                     type="button"
                     disabled={modalGuestD <= 0}
                     onClick={() => setModalGuestD(Math.max(0, modalGuestD - 1))}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-bold"
+                    className="w-7 h-7 flex items-center justify-center rounded-xl bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-bold transition-colors"
                   >
                     <Minus className="w-3.5 h-3.5 text-slate-700" />
                   </button>
@@ -1505,7 +1634,7 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
                     type="button"
                     disabled={modalGuestD >= 20}
                     onClick={() => setModalGuestD(modalGuestD + 1)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-bold"
+                    className="w-7 h-7 flex items-center justify-center rounded-xl bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-bold transition-colors"
                   >
                     <Plus className="w-3.5 h-3.5 text-slate-700" />
                   </button>
@@ -1514,13 +1643,13 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
             </div>
 
             {/* Total Guest Summary */}
-            <div className="p-3 bg-purple-50/70 rounded-2xl border border-purple-200 flex items-center justify-between text-xs font-bold text-slate-800">
+            <div className="p-3.5 bg-purple-50/70 rounded-2xl border border-purple-200 flex items-center justify-between text-xs font-bold text-slate-800">
               <div>
                 <span>মোট মেহমান: </span>
-                <span className="text-purple-700 text-sm font-black">{modalGuestB + modalGuestL + modalGuestD} টি</span>
+                <span className="text-purple-700 text-sm font-black">{modalGuestB + modalGuestL + modalGuestD} জন</span>
               </div>
               <div>
-                <span className="text-slate-500">মোট পয়েন্ট: </span>
+                <span className="text-slate-500">পয়েন্ট: </span>
                 <span className="text-emerald-700 text-sm font-black">
                   {(
                     modalGuestB * effGuestB +
@@ -1545,7 +1674,7 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
                 onClick={handleSaveGuestModal}
                 className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-md transition-colors"
               >
-                ঠিক আছে (Apply)
+                প্রয়োগ করুন (Apply)
               </button>
             </div>
           </div>
