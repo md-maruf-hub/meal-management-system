@@ -164,6 +164,9 @@ export function calculateMonthlyReport(
       dueAmount = roundDecimal(totalCost - depositAmount, 3);
     }
 
+    if (dueAmount <= 0.01) dueAmount = 0;
+    if (refundAmount <= 0.01) refundAmount = 0;
+
     // Check settlements for this member in this month
     const memberSettlements = settlements.filter(
       (s) => isMemberMatch(s.memberId, member) && s.yearMonth === yearMonth
@@ -173,8 +176,9 @@ export function calculateMonthlyReport(
       2
     );
 
-    const targetSettlement = dueAmount > 0 ? dueAmount : refundAmount;
-    const isSettled = memberSettlements.length > 0 || (settledAmount >= targetSettlement && targetSettlement > 0);
+    const isZeroBalance = dueAmount <= 0.01 && refundAmount <= 0.01;
+    // Settled only when the remaining balance is zero (0.00)
+    const isSettled = isZeroBalance && (memberSettlements.length > 0 || totalCost === depositAmount);
 
     totalKhala += khalaBill;
     totalGas += gasBill;

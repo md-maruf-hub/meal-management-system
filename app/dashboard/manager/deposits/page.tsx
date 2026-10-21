@@ -284,49 +284,55 @@ export default function DepositPage() {
                       <td className="p-3 text-right text-slate-700 font-mono">৳ {m.totalCost.toFixed(2)}</td>
                       <td className="p-3 text-right text-emerald-700 font-mono font-bold">৳ {m.deposit.toFixed(2)}</td>
                       <td className="p-3 text-center">
-                        {m.isSettled ? (
-                          <span className="px-2.5 py-1 bg-blue-100 text-blue-800 font-extrabold rounded-full text-[11px]">
-                            ✓ পরিশোধিত
-                          </span>
-                        ) : due > 0 ? (
+                        {due > 0.01 ? (
                           <span className="px-2.5 py-1 bg-red-100 text-red-800 font-extrabold rounded-full text-[11px]">
                             বকেয়া: ৳ {due.toFixed(2)}
                           </span>
-                        ) : refund > 0 ? (
+                        ) : refund > 0.01 ? (
                           <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 font-extrabold rounded-full text-[11px]">
                             ফেরত: ৳ {refund.toFixed(2)}
                           </span>
+                        ) : m.isSettled || m.settledAmount > 0 ? (
+                          <span className="px-2.5 py-1 bg-blue-100 text-blue-800 font-extrabold rounded-full text-[11px]">
+                            ✓ পরিশোধিত (০.০০)
+                          </span>
                         ) : (
                           <span className="px-2.5 py-1 bg-slate-100 text-slate-600 font-bold rounded-full text-[11px]">
-                            ব্যালেন্সড
+                            ব্যালেন্সড (০.০০)
                           </span>
                         )}
                       </td>
                       <td className="p-3 text-center pr-5">
-                        {m.isSettled ? (
-                          <span className="text-xs text-slate-400 font-medium">সম্পূর্ণ</span>
-                        ) : !canSettle ? (
-                          <span className="text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded-md border border-amber-200">
-                            🔒 শুধু বিগত ম্যানেজার
-                          </span>
-                        ) : due > 0 ? (
-                          <button
-                            onClick={() => startSettlement(m)}
-                            className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center space-x-1 mx-auto"
-                          >
-                            <span>বকেয়া গ্রহণ</span>
-                            <ArrowRight className="w-3.5 h-3.5" />
-                          </button>
-                        ) : refund > 0 ? (
-                          <button
-                            onClick={() => startSettlement(m)}
-                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center space-x-1 mx-auto"
-                          >
-                            <span>ফেরত দিন</span>
-                            <ArrowRight className="w-3.5 h-3.5" />
-                          </button>
+                        {due > 0.01 ? (
+                          !canSettle ? (
+                            <span className="text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded-md border border-amber-200">
+                              🔒 শুধু বিগত ম্যানেজার
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => startSettlement(m)}
+                              className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center space-x-1 mx-auto"
+                            >
+                              <span>বকেয়া গ্রহণ</span>
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </button>
+                          )
+                        ) : refund > 0.01 ? (
+                          !canSettle ? (
+                            <span className="text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded-md border border-amber-200">
+                              🔒 শুধু বিগত ম্যানেজার
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => startSettlement(m)}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center space-x-1 mx-auto"
+                            >
+                              <span>ফেরত দিন</span>
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </button>
+                          )
                         ) : (
-                          <span className="text-xs text-slate-400 font-medium">-</span>
+                          <span className="text-xs text-slate-400 font-medium">সম্পূর্ণ</span>
                         )}
                       </td>
                     </tr>

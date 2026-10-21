@@ -77,10 +77,10 @@ export default function MemberDashboard() {
   const rawDue = memberData ? (memberData.dueAmount ?? memberData.giveBalance ?? 0) : 0;
   const rawRefund = memberData ? (memberData.refundAmount ?? memberData.receiveBalance ?? 0) : 0;
   const settled = memberData ? (memberData.settledAmount ?? 0) : 0;
-  const isSettled = memberData ? memberData.isSettled : false;
 
-  const dueVal = isSettled ? 0 : Math.max(0, rawDue - settled);
-  const refundVal = isSettled ? 0 : Math.max(0, rawRefund - settled);
+  const dueVal = rawDue > 0.01 ? rawDue : 0;
+  const refundVal = rawRefund > 0.01 ? rawRefund : 0;
+  const isSettled = Boolean(memberData?.isSettled && dueVal === 0 && refundVal === 0);
 
   return (
     <div className="space-y-6">
@@ -165,31 +165,31 @@ export default function MemberDashboard() {
             </div>
 
             <div className={`p-5 rounded-xl border shadow-sm space-y-1 ${
-              isSettled
-                ? 'bg-blue-50 border-blue-200'
+              dueVal > 0
+                ? 'bg-red-50 border-red-200'
                 : refundVal > 0
                 ? 'bg-emerald-50 border-emerald-200'
-                : dueVal > 0
-                ? 'bg-red-50 border-red-200'
+                : isSettled || settled > 0
+                ? 'bg-blue-50 border-blue-200'
                 : 'bg-slate-50 border-slate-200'
             }`}>
               <div className="flex items-center justify-between text-slate-600">
                 <span className="text-xs font-bold uppercase">ব্যালেন্স ও স্থিতি</span>
-                {isSettled ? (
-                  <ArrowDownLeft className="w-5 h-5 text-blue-600" />
+                {dueVal > 0 ? (
+                  <ArrowUpRight className="w-5 h-5 text-red-600" />
                 ) : refundVal > 0 ? (
                   <ArrowDownLeft className="w-5 h-5 text-emerald-600" />
                 ) : (
-                  <ArrowUpRight className="w-5 h-5 text-red-600" />
+                  <ArrowDownLeft className="w-5 h-5 text-blue-600" />
                 )}
               </div>
-              {isSettled ? (
+              {dueVal > 0 ? (
                 <div>
-                  <p className="text-2xl font-extrabold text-blue-700">
-                    ৳ {settled.toFixed(2)}
+                  <p className="text-2xl font-extrabold text-red-700">
+                    ৳ {dueVal.toFixed(2)}
                   </p>
-                  <span className="inline-block text-xs font-bold text-blue-800 uppercase tracking-wider">
-                    পরিশোধিত / সমন্বিত (SETTLED)
+                  <span className="inline-block text-xs font-bold text-red-800 uppercase tracking-wider">
+                    মেসে বকেয়া পরিশোধযোগ্য (DUE)
                   </span>
                 </div>
               ) : refundVal > 0 ? (
@@ -201,13 +201,13 @@ export default function MemberDashboard() {
                     মেস থেকে ফেরত পাবেন (REFUND)
                   </span>
                 </div>
-              ) : dueVal > 0 ? (
+              ) : isSettled || settled > 0 ? (
                 <div>
-                  <p className="text-2xl font-extrabold text-red-700">
-                    ৳ {dueVal.toFixed(2)}
+                  <p className="text-2xl font-extrabold text-blue-700">
+                    ৳ {settled.toFixed(2)}
                   </p>
-                  <span className="inline-block text-xs font-bold text-red-800 uppercase tracking-wider">
-                    মেসে বকেয়া পরিশোধযোগ্য (DUE)
+                  <span className="inline-block text-xs font-bold text-blue-800 uppercase tracking-wider">
+                    পরিশোধিত / সমন্বিত (SETTLED)
                   </span>
                 </div>
               ) : (
@@ -374,20 +374,20 @@ export default function MemberDashboard() {
                       </div>
 
                       <div className={`p-3 rounded-xl border ${
-                        isSettled
-                          ? 'bg-blue-50 border-blue-200'
+                        dueVal > 0
+                          ? 'bg-red-50 border-red-200'
                           : refundVal > 0
                           ? 'bg-emerald-50 border-emerald-200'
-                          : dueVal > 0
-                          ? 'bg-red-50 border-red-200'
+                          : isSettled || settled > 0
+                          ? 'bg-blue-50 border-blue-200'
                           : 'bg-slate-50 border-slate-200'
                       }`}>
                         <span className="text-xs font-semibold block text-slate-600">চলতি নেট দেনা / পাওনা</span>
-                        {isSettled ? (
+                        {dueVal > 0 ? (
                           <div className="mt-1">
-                            <span className="text-xl font-black text-blue-700 block">৳ {settled.toFixed(2)}</span>
-                            <span className="text-[10px] font-extrabold text-blue-800 uppercase bg-blue-100 px-2 py-0.5 rounded-full inline-block mt-1">
-                              ✅ সম্পূর্ণ পরিশোধিত / সমন্বিত (SETTLED)
+                            <span className="text-xl font-black text-red-700 block">৳ {dueVal.toFixed(2)}</span>
+                            <span className="text-[10px] font-extrabold text-red-800 uppercase bg-red-100 px-2 py-0.5 rounded-full inline-block mt-1">
+                              ⚠️ মেসে বকেয়া পরিশোধযোগ্য (DUE)
                             </span>
                           </div>
                         ) : refundVal > 0 ? (
@@ -397,11 +397,11 @@ export default function MemberDashboard() {
                               💵 মেস থেকে ফেরত পাবেন (REFUND)
                             </span>
                           </div>
-                        ) : dueVal > 0 ? (
+                        ) : isSettled || settled > 0 ? (
                           <div className="mt-1">
-                            <span className="text-xl font-black text-red-700 block">৳ {dueVal.toFixed(2)}</span>
-                            <span className="text-[10px] font-extrabold text-red-800 uppercase bg-red-100 px-2 py-0.5 rounded-full inline-block mt-1">
-                              ⚠️ মেসে বকেয়া পরিশোধযোগ্য (DUE)
+                            <span className="text-xl font-black text-blue-700 block">৳ {settled.toFixed(2)}</span>
+                            <span className="text-[10px] font-extrabold text-blue-800 uppercase bg-blue-100 px-2 py-0.5 rounded-full inline-block mt-1">
+                              ✅ সম্পূর্ণ পরিশোধিত / সমন্বিত (SETTLED)
                             </span>
                           </div>
                         ) : (
