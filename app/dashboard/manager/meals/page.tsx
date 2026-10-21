@@ -56,8 +56,8 @@ export default function DailyMealsMatrix() {
     }
   }, [selectedMonth]);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     setMessage('');
     setError('');
 
@@ -123,10 +123,10 @@ export default function DailyMealsMatrix() {
       });
 
       setDailyState(initDaily);
-      setLoading(false);
+      if (showLoading) setLoading(false);
     } catch (err) {
       setError('Failed to load meal matrix data.');
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -410,11 +410,11 @@ export default function DailyMealsMatrix() {
         <>
           {/* VIEW MODE 0: KITCHEN COOKING BOARD */}
           {viewMode === 'COOKING_BOARD' && (
-        <CookingBoard
-          selectedMonth={selectedMonth}
-          onSyncComplete={fetchData}
-        />
-      )}
+            <CookingBoard
+              selectedMonth={selectedMonth}
+              onSyncComplete={() => fetchData(false)}
+            />
+          )}
 
       {/* VIEW MODE 1: DAILY B/L/D/G ENTRY VIEW */}
       {viewMode === 'DAILY_BLDG' && (

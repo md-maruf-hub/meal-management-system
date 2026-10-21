@@ -87,9 +87,14 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
     fetchCookingData();
   }, [date]);
 
-  const fetchCookingData = async () => {
-    setLoading(true);
-    setToastMessage(null);
+  useEffect(() => {
+    if (!toastMessage) return;
+    const timer = setTimeout(() => setToastMessage(null), 3500);
+    return () => clearTimeout(timer);
+  }, [toastMessage]);
+
+  const fetchCookingData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const res = await fetch(`/api/manager/cooking-board?date=${date}`);
       const resData = await res.json();
@@ -122,9 +127,9 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
 
         setDirtyMap({});
       }
-      setLoading(false);
+      if (!silent) setLoading(false);
     } catch (err) {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -153,7 +158,7 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
           type: 'success',
           text: resData.message || `তারিখ ${date}-এর মিল সফলভাবে গুগল শিটে যোগ ও সেভ করা হয়েছে!`,
         });
-        await fetchCookingData();
+        await fetchCookingData(true);
         if (onSyncComplete) onSyncComplete();
       } else {
         setToastMessage({
@@ -191,7 +196,7 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
           type: 'success',
           text: resData.message || `তারিখ ${date}-এর মিল গুগল শিট থেকে মুছে ফেলা হয়েছে!`,
         });
-        await fetchCookingData();
+        await fetchCookingData(true);
         if (onSyncComplete) onSyncComplete();
       } else {
         setToastMessage({
@@ -211,7 +216,10 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
 
   const handleToggleSessionLock = async (mealType: 'breakfast' | 'lunch' | 'dinner', shouldLock: boolean) => {
     setProcessingLock(true);
-    setToastMessage(null);
+    // Instant optimistic update: update the session lock button immediately
+    if (mealType === 'breakfast') setBreakfastLocked(shouldLock);
+    if (mealType === 'lunch') setLunchLocked(shouldLock);
+    if (mealType === 'dinner') setDinnerLocked(shouldLock);
 
     try {
       const res = await fetch('/api/manager/cooking-board', {
@@ -236,9 +244,13 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
           type: 'success',
           text: resData.message || 'সফল হয়েছে!',
         });
-        await fetchCookingData();
+        await fetchCookingData(true);
         if (onSyncComplete) onSyncComplete();
       } else {
+        // Revert on failure
+        if (mealType === 'breakfast') setBreakfastLocked(!shouldLock);
+        if (mealType === 'lunch') setLunchLocked(!shouldLock);
+        if (mealType === 'dinner') setDinnerLocked(!shouldLock);
         setToastMessage({
           type: 'error',
           text: resData.error || 'অ্যাকশন সম্পন্ন করতে সমস্যা হয়েছে।',
@@ -246,6 +258,10 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
       }
       setProcessingLock(false);
     } catch (err: any) {
+      // Revert on failure
+      if (mealType === 'breakfast') setBreakfastLocked(!shouldLock);
+      if (mealType === 'lunch') setLunchLocked(!shouldLock);
+      if (mealType === 'dinner') setDinnerLocked(!shouldLock);
       setProcessingLock(false);
       setToastMessage({
         type: 'error',
@@ -494,7 +510,11 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
 
   const handleToggleLock = async (action: 'LOCK_AND_SYNC' | 'UNLOCK') => {
     setProcessingLock(true);
-    setToastMessage(null);
+    const shouldLock = action === 'LOCK_AND_SYNC';
+    // Optimistic update so the UI updates instantly
+    setBreakfastLocked(shouldLock);
+    setLunchLocked(shouldLock);
+    setDinnerLocked(shouldLock);
 
     try {
       const res = await fetch('/api/manager/cooking-board', {
@@ -516,11 +536,12 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
       if (res.ok && resData.success) {
         setToastMessage({
           type: 'success',
-          text: resData.message || (action === 'LOCK_AND_SYNC' ? 'সব বেলার মিল সাইটে সফলভাবে লক করা হয়েছে!' : 'সব বেলার মিল আনলক করা হয়েছে।'),
+          text: resData.message || (shouldLock ? 'সব বেলার মিল সাইটে সফলভাবে লক করা হয়েছে!' : 'সব বেলার মিল আনলক করা হয়েছে।'),
         });
-        await fetchCookingData();
+        await fetchCookingData(true);
         if (onSyncComplete) onSyncComplete();
       } else {
+        await fetchCookingData(true);
         setToastMessage({
           type: 'error',
           text: resData.error || 'অ্যাকশন সম্পন্ন করতে সমস্যা হয়েছে।',
@@ -528,6 +549,7 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
       }
       setProcessingLock(false);
     } catch (err: any) {
+      await fetchCookingData(true);
       setProcessingLock(false);
       setToastMessage({
         type: 'error',
@@ -628,7 +650,7 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
             </div>
 
             <button
-              onClick={fetchCookingData}
+              onClick={() => fetchCookingData(false)}
               title="রিফ্রেশ করুন"
               className="p-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-2xl border border-slate-700 transition-colors flex items-center justify-center shadow-sm"
             >
