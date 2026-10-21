@@ -21,6 +21,7 @@ import {
   X,
   Settings2,
   Sparkles,
+  Info,
 } from 'lucide-react';
 
 interface CookingBoardProps {
@@ -319,7 +320,7 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
     setModalGuestD(Number(m.guestDinner) || 0);
   };
 
-  const handleSaveGuestModal = () => {
+  const handleSaveGuestModal = async (autoSave: boolean = false) => {
     if (!guestModalMember) return;
     const targetId = guestModalMember.memberId;
     const totalG = modalGuestB + modalGuestL + modalGuestD;
@@ -337,7 +338,54 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
       })
     );
     setDirtyMap((prev) => ({ ...prev, [targetId]: true }));
+    const savedMember = { ...guestModalMember };
     setGuestModalMember(null);
+
+    if (autoSave) {
+      setSavingRowId(targetId);
+      try {
+        const res = await fetch('/api/manager/cooking-board', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            date,
+            action: 'UPDATE_MEMBER_MEAL',
+            memberId: targetId,
+            breakfast: savedMember.breakfast,
+            lunch: savedMember.lunch,
+            dinner: savedMember.dinner,
+            guestBreakfast: modalGuestB,
+            guestLunch: modalGuestL,
+            guestDinner: modalGuestD,
+            guestCount: totalG,
+            note: savedMember.note,
+            bValue: bWeight,
+            lValue: lWeight,
+            dValue: dWeight,
+            gbValue: showCustomGuestWeights ? guestBWeight : bWeight,
+            glValue: showCustomGuestWeights ? guestLWeight : lWeight,
+            gdValue: showCustomGuestWeights ? guestDWeight : dWeight,
+          }),
+        });
+        const resData = await res.json();
+        if (res.ok && resData.success) {
+          setToastMessage({
+            type: 'success',
+            text: `✅ ${savedMember.name}-এর মেহমান মিল সফলভাবে সংরক্ষিত হয়েছে!`,
+          });
+          setDirtyMap((prev) => {
+            const next = { ...prev };
+            delete next[targetId];
+            return next;
+          });
+          if (onSyncComplete) onSyncComplete();
+        }
+      } catch (err) {
+        // Handled silently
+      } finally {
+        setSavingRowId(null);
+      }
+    }
   };
 
   const calculateMemberMealTotal = (m: any) => {
@@ -1025,14 +1073,17 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
               <Settings2 className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <h4 className="font-bold text-slate-900 text-sm">মিলের পয়েন্ট সেটিংস (Meal Point Values)</h4>
                 <span className="text-[10px] font-semibold text-slate-500">
-                  সকাল: <b className="text-amber-800">{bWeight} pt</b> | দুপুর: <b className="text-blue-800">{lWeight} pt</b> | রাত: <b className="text-purple-800">{dWeight} pt</b>
+                  মেম্বার: <b className="text-amber-800">{bWeight} pt</b> / <b className="text-blue-800">{lWeight} pt</b> / <b className="text-purple-800">{dWeight} pt</b>
+                </span>
+                <span className="text-[10px] font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200">
+                  মেহমান: <b className="text-purple-900">{showCustomGuestWeights ? guestBWeight : bWeight} pt</b> / <b className="text-purple-900">{showCustomGuestWeights ? guestLWeight : lWeight} pt</b> / <b className="text-purple-900">{showCustomGuestWeights ? guestDWeight : dWeight} pt</b>
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 mt-0.5">
-                সকাল, দুপুর বা রাতের মিলের হিসাব পয়েন্ট (ওজন) পরিবর্তন করতে পারেন।
+                সদস্য ও মেহমানদের প্রতি বেলার মিলের হিসাব পয়েন্ট (ওজন) সহজে পরিবর্তন করুন।
               </p>
             </div>
           </div>
@@ -1050,11 +1101,12 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
 
         {/* Collapsible Weights Form */}
         {isWeightSettingsOpen && (
-          <div className="p-5 border-t border-slate-200 bg-white space-y-4 animate-in fade-in duration-150">
+          <div className="p-5 border-t border-slate-200 bg-white space-y-5 animate-in fade-in duration-150">
+            {/* Section 1: Member Meal Weights */}
             <div>
               <h5 className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3 flex items-center space-x-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                <span>প্রতি বেলার মিল পয়েন্ট নির্ধারণ করুন:</span>
+                <span>১. মেম্বারদের মিল পয়েন্ট নির্ধারণ করুন:</span>
               </h5>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {/* B */}
@@ -1119,15 +1171,107 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
               </div>
             </div>
 
-            <div className="pt-2 border-t border-slate-100 flex justify-end">
+            {/* Section 2: Guest Meal Weights */}
+            <div className="pt-4 border-t border-slate-100 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h5 className="text-xs font-bold uppercase tracking-wider text-purple-900 flex items-center space-x-1.5">
+                    <Users className="w-3.5 h-3.5 text-purple-600" />
+                    <span>২. মেহমান মিলের পয়েন্ট ভ্যালু (Guest Meal Values / Weights):</span>
+                  </h5>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    প্রতি জন মেহমানের সকাল, দুপুর বা রাতের খাবারের জন্য নির্দিষ্ট পয়েন্ট নির্ধারণ করুন।
+                  </p>
+                </div>
+
+                <label className="flex items-center space-x-2 cursor-pointer bg-purple-50 hover:bg-purple-100/70 px-3 py-1.5 rounded-xl border border-purple-200 transition-colors self-start sm:self-auto">
+                  <input
+                    type="checkbox"
+                    checked={showCustomGuestWeights}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setShowCustomGuestWeights(checked);
+                      if (!checked) {
+                        setGuestBWeight(bWeight);
+                        setGuestLWeight(lWeight);
+                        setGuestDWeight(dWeight);
+                      }
+                    }}
+                    className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 cursor-pointer"
+                  />
+                  <span className="text-xs font-bold text-purple-900">আলাদা মেহমান পয়েন্ট ব্যবহার করুন</span>
+                </label>
+              </div>
+
+              {showCustomGuestWeights ? (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Guest B */}
+                  <div className="p-3 bg-purple-50/50 rounded-2xl border border-purple-200 flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-bold text-purple-900 block">🍳 মেহমান নাস্তা পয়েন্ট (Guest B)</span>
+                      <span className="text-[10px] text-slate-500">প্রতি জন নাস্তায় পয়েন্ট</span>
+                    </div>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={guestBWeight}
+                      onChange={(e) => setGuestBWeight(Math.max(0, parseFloat(e.target.value) || 0))}
+                      className="w-16 text-center py-1 bg-white border border-purple-300 rounded-xl font-black text-purple-900 text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none shadow-inner"
+                    />
+                  </div>
+
+                  {/* Guest L */}
+                  <div className="p-3 bg-purple-50/50 rounded-2xl border border-purple-200 flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-bold text-purple-900 block">🍛 মেহমান দুপুর পয়েন্ট (Guest L)</span>
+                      <span className="text-[10px] text-slate-500">প্রতি জন দুপুরে পয়েন্ট</span>
+                    </div>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={guestLWeight}
+                      onChange={(e) => setGuestLWeight(Math.max(0, parseFloat(e.target.value) || 0))}
+                      className="w-16 text-center py-1 bg-white border border-purple-300 rounded-xl font-black text-purple-900 text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none shadow-inner"
+                    />
+                  </div>
+
+                  {/* Guest D */}
+                  <div className="p-3 bg-purple-50/50 rounded-2xl border border-purple-200 flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-bold text-purple-900 block">🍲 মেহমান রাত পয়েন্ট (Guest D)</span>
+                      <span className="text-[10px] text-slate-500">প্রতি জন রাতে পয়েন্ট</span>
+                    </div>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={guestDWeight}
+                      onChange={(e) => setGuestDWeight(Math.max(0, parseFloat(e.target.value) || 0))}
+                      className="w-16 text-center py-1 bg-white border border-purple-300 rounded-xl font-black text-purple-900 text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none shadow-inner"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-600 flex items-center space-x-2">
+                  <Info className="w-4 h-4 text-slate-400 shrink-0" />
+                  <span>
+                    বর্তমানে মেহমান মিলের পয়েন্ট মেম্বারদের সমান রাখা আছে (সকাল: <b>{bWeight} pt</b>, দুপুর: <b>{lWeight} pt</b>, রাত: <b>{dWeight} pt</b>)। আলাদা পয়েন্ট বসাতে উপরের অপশনে টিক দিন।
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex justify-end">
               <button
                 type="button"
                 onClick={handleApplyWeightsToAll}
                 disabled={savingBulk}
-                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center space-x-1.5"
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center space-x-1.5 cursor-pointer"
               >
                 <Save className="w-3.5 h-3.5" />
-                <span>{savingBulk ? 'সংরক্ষণ হচ্ছে...' : 'নতুন পয়েন্ট সেভ করুন'}</span>
+                <span>{savingBulk ? 'সংরক্ষণ হচ্ছে...' : 'পয়েন্ট সেটিংস সেভ করুন'}</span>
               </button>
             </div>
           </div>
@@ -1496,118 +1640,148 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
 
             <div className="space-y-3.5">
               {/* Breakfast Guest */}
-              <div className="flex items-center justify-between p-3.5 bg-amber-50/60 rounded-2xl border border-amber-200">
-                <div className="flex items-center space-x-2.5">
-                  <span className="text-xl">🍳</span>
-                  <div>
-                    <h5 className="font-bold text-xs text-slate-800">সকালের নাস্তায় মেহমান</h5>
-                    <span className="text-[10px] text-slate-500">
-                      {bWeight} pt/জন {modalGuestB > 0 ? `→ ${(modalGuestB * bWeight).toFixed(1)} pt` : ''}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button
-                    type="button"
-                    disabled={modalGuestB <= 0}
-                    onClick={() => setModalGuestB(Math.max(0, modalGuestB - 1))}
-                    className="w-7 h-7 flex items-center justify-center rounded-xl bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-bold transition-colors"
-                  >
-                    <Minus className="w-3.5 h-3.5 text-slate-700" />
-                  </button>
-                  <span className="w-6 text-center font-black text-sm text-slate-900">{modalGuestB}</span>
-                  <button
-                    type="button"
-                    disabled={modalGuestB >= 20}
-                    onClick={() => setModalGuestB(modalGuestB + 1)}
-                    className="w-7 h-7 flex items-center justify-center rounded-xl bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-bold transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5 text-slate-700" />
-                  </button>
-                </div>
-              </div>
+              {(() => {
+                const effGb = showCustomGuestWeights ? guestBWeight : bWeight;
+                const effGl = showCustomGuestWeights ? guestLWeight : lWeight;
+                const effGd = showCustomGuestWeights ? guestDWeight : dWeight;
+                return (
+                  <>
+                    <div className="flex items-center justify-between p-3.5 bg-amber-50/60 rounded-2xl border border-amber-200">
+                      <div className="flex items-center space-x-2.5">
+                        <span className="text-xl">🍳</span>
+                        <div>
+                          <h5 className="font-bold text-xs text-slate-800">সকালের নাস্তায় মেহমান</h5>
+                          <span className="text-[10px] text-slate-500">
+                            {effGb} pt/জন {modalGuestB > 0 ? `→ ${(modalGuestB * effGb).toFixed(1)} pt` : ''}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-1.5">
+                        <button
+                          type="button"
+                          disabled={modalGuestB <= 0}
+                          onClick={() => setModalGuestB(Math.max(0, modalGuestB - 1))}
+                          className="w-7 h-7 flex items-center justify-center rounded-xl bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-bold transition-colors cursor-pointer shadow-xs"
+                        >
+                          <Minus className="w-3.5 h-3.5 text-slate-700" />
+                        </button>
+                        <input
+                          type="number"
+                          min="0"
+                          max="50"
+                          value={modalGuestB}
+                          onChange={(e) => setModalGuestB(Math.max(0, parseInt(e.target.value) || 0))}
+                          className="w-12 text-center font-black text-sm text-slate-900 bg-white border border-slate-300 rounded-xl py-0.5 focus:ring-2 focus:ring-amber-400 focus:outline-none shadow-inner"
+                        />
+                        <button
+                          type="button"
+                          disabled={modalGuestB >= 50}
+                          onClick={() => setModalGuestB(modalGuestB + 1)}
+                          className="w-7 h-7 flex items-center justify-center rounded-xl bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-bold transition-colors cursor-pointer shadow-xs"
+                        >
+                          <Plus className="w-3.5 h-3.5 text-slate-700" />
+                        </button>
+                      </div>
+                    </div>
 
-              {/* Lunch Guest */}
-              <div className="flex items-center justify-between p-3.5 bg-blue-50/60 rounded-2xl border border-blue-200">
-                <div className="flex items-center space-x-2.5">
-                  <span className="text-xl">🍛</span>
-                  <div>
-                    <h5 className="font-bold text-xs text-slate-800">দুপুরের খাবারে মেহমান</h5>
-                    <span className="text-[10px] text-slate-500">
-                      {lWeight} pt/জন {modalGuestL > 0 ? `→ ${(modalGuestL * lWeight).toFixed(1)} pt` : ''}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button
-                    type="button"
-                    disabled={modalGuestL <= 0}
-                    onClick={() => setModalGuestL(Math.max(0, modalGuestL - 1))}
-                    className="w-7 h-7 flex items-center justify-center rounded-xl bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-bold transition-colors"
-                  >
-                    <Minus className="w-3.5 h-3.5 text-slate-700" />
-                  </button>
-                  <span className="w-6 text-center font-black text-sm text-slate-900">{modalGuestL}</span>
-                  <button
-                    type="button"
-                    disabled={modalGuestL >= 20}
-                    onClick={() => setModalGuestL(modalGuestL + 1)}
-                    className="w-7 h-7 flex items-center justify-center rounded-xl bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-bold transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5 text-slate-700" />
-                  </button>
-                </div>
-              </div>
+                    {/* Lunch Guest */}
+                    <div className="flex items-center justify-between p-3.5 bg-blue-50/60 rounded-2xl border border-blue-200">
+                      <div className="flex items-center space-x-2.5">
+                        <span className="text-xl">🍛</span>
+                        <div>
+                          <h5 className="font-bold text-xs text-slate-800">দুপুরের খাবারে মেহমান</h5>
+                          <span className="text-[10px] text-slate-500">
+                            {effGl} pt/জন {modalGuestL > 0 ? `→ ${(modalGuestL * effGl).toFixed(1)} pt` : ''}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-1.5">
+                        <button
+                          type="button"
+                          disabled={modalGuestL <= 0}
+                          onClick={() => setModalGuestL(Math.max(0, modalGuestL - 1))}
+                          className="w-7 h-7 flex items-center justify-center rounded-xl bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-bold transition-colors cursor-pointer shadow-xs"
+                        >
+                          <Minus className="w-3.5 h-3.5 text-slate-700" />
+                        </button>
+                        <input
+                          type="number"
+                          min="0"
+                          max="50"
+                          value={modalGuestL}
+                          onChange={(e) => setModalGuestL(Math.max(0, parseInt(e.target.value) || 0))}
+                          className="w-12 text-center font-black text-sm text-slate-900 bg-white border border-slate-300 rounded-xl py-0.5 focus:ring-2 focus:ring-blue-400 focus:outline-none shadow-inner"
+                        />
+                        <button
+                          type="button"
+                          disabled={modalGuestL >= 50}
+                          onClick={() => setModalGuestL(modalGuestL + 1)}
+                          className="w-7 h-7 flex items-center justify-center rounded-xl bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-bold transition-colors cursor-pointer shadow-xs"
+                        >
+                          <Plus className="w-3.5 h-3.5 text-slate-700" />
+                        </button>
+                      </div>
+                    </div>
 
-              {/* Dinner Guest */}
-              <div className="flex items-center justify-between p-3.5 bg-purple-50/60 rounded-2xl border border-purple-200">
-                <div className="flex items-center space-x-2.5">
-                  <span className="text-xl">🍲</span>
-                  <div>
-                    <h5 className="font-bold text-xs text-slate-800">রাতের খাবারে মেহমান</h5>
-                    <span className="text-[10px] text-slate-500">
-                      {dWeight} pt/জন {modalGuestD > 0 ? `→ ${(modalGuestD * dWeight).toFixed(1)} pt` : ''}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button
-                    type="button"
-                    disabled={modalGuestD <= 0}
-                    onClick={() => setModalGuestD(Math.max(0, modalGuestD - 1))}
-                    className="w-7 h-7 flex items-center justify-center rounded-xl bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-bold transition-colors"
-                  >
-                    <Minus className="w-3.5 h-3.5 text-slate-700" />
-                  </button>
-                  <span className="w-6 text-center font-black text-sm text-slate-900">{modalGuestD}</span>
-                  <button
-                    type="button"
-                    disabled={modalGuestD >= 20}
-                    onClick={() => setModalGuestD(modalGuestD + 1)}
-                    className="w-7 h-7 flex items-center justify-center rounded-xl bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-bold transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5 text-slate-700" />
-                  </button>
-                </div>
-              </div>
-            </div>
+                    {/* Dinner Guest */}
+                    <div className="flex items-center justify-between p-3.5 bg-purple-50/60 rounded-2xl border border-purple-200">
+                      <div className="flex items-center space-x-2.5">
+                        <span className="text-xl">🍲</span>
+                        <div>
+                          <h5 className="font-bold text-xs text-slate-800">রাতের খাবারে মেহমান</h5>
+                          <span className="text-[10px] text-slate-500">
+                            {effGd} pt/জন {modalGuestD > 0 ? `→ ${(modalGuestD * effGd).toFixed(1)} pt` : ''}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-1.5">
+                        <button
+                          type="button"
+                          disabled={modalGuestD <= 0}
+                          onClick={() => setModalGuestD(Math.max(0, modalGuestD - 1))}
+                          className="w-7 h-7 flex items-center justify-center rounded-xl bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-bold transition-colors cursor-pointer shadow-xs"
+                        >
+                          <Minus className="w-3.5 h-3.5 text-slate-700" />
+                        </button>
+                        <input
+                          type="number"
+                          min="0"
+                          max="50"
+                          value={modalGuestD}
+                          onChange={(e) => setModalGuestD(Math.max(0, parseInt(e.target.value) || 0))}
+                          className="w-12 text-center font-black text-sm text-slate-900 bg-white border border-slate-300 rounded-xl py-0.5 focus:ring-2 focus:ring-purple-400 focus:outline-none shadow-inner"
+                        />
+                        <button
+                          type="button"
+                          disabled={modalGuestD >= 50}
+                          onClick={() => setModalGuestD(modalGuestD + 1)}
+                          className="w-7 h-7 flex items-center justify-center rounded-xl bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-bold transition-colors cursor-pointer shadow-xs"
+                        >
+                          <Plus className="w-3.5 h-3.5 text-slate-700" />
+                        </button>
+                      </div>
+                    </div>
 
-            {/* Total Guest Summary */}
-            <div className="p-3.5 bg-purple-50/70 rounded-2xl border border-purple-200 flex items-center justify-between text-xs font-bold text-slate-800">
-              <div>
-                <span>মোট মেহমান: </span>
-                <span className="text-purple-700 text-sm font-black">{modalGuestB + modalGuestL + modalGuestD} জন</span>
-              </div>
-              <div>
-                <span className="text-slate-500">পয়েন্ট: </span>
-                <span className="text-emerald-700 text-sm font-black">
-                  {(
-                    modalGuestB * bWeight +
-                    modalGuestL * lWeight +
-                    modalGuestD * dWeight
-                  ).toFixed(1)} pt
-                </span>
-              </div>
+                    {/* Total Guest Summary */}
+                    <div className="p-3.5 bg-purple-50/70 rounded-2xl border border-purple-200 flex items-center justify-between text-xs font-bold text-slate-800">
+                      <div>
+                        <span>মোট মেহমান: </span>
+                        <span className="text-purple-700 text-sm font-black">{modalGuestB + modalGuestL + modalGuestD} জন</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">মোট পয়েন্ট: </span>
+                        <span className="text-emerald-700 text-sm font-black">
+                          {(
+                            modalGuestB * effGb +
+                            modalGuestL * effGl +
+                            modalGuestD * effGd
+                          ).toFixed(1)} pt
+                        </span>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
 
             {/* Modal Actions */}
@@ -1615,16 +1789,24 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
               <button
                 type="button"
                 onClick={() => setGuestModalMember(null)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors"
+                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors cursor-pointer"
               >
                 বাতিল
               </button>
               <button
                 type="button"
-                onClick={handleSaveGuestModal}
-                className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-md transition-colors"
+                onClick={() => handleSaveGuestModal(false)}
+                className="px-4 py-2 bg-purple-100 hover:bg-purple-200 text-purple-900 font-bold text-xs rounded-xl border border-purple-300 transition-colors cursor-pointer"
               >
-                প্রয়োগ করুন (Apply)
+                প্রয়োগ করুন
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSaveGuestModal(true)}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md transition-colors flex items-center space-x-1 cursor-pointer"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>সংরক্ষণ করুন</span>
               </button>
             </div>
           </div>
