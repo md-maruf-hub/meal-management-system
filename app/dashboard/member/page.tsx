@@ -20,6 +20,8 @@ import {
   Lock,
   Search,
   CheckCircle,
+  Printer,
+  Filter,
 } from 'lucide-react';
 import MealBookingWidget from '../../../components/member/MealBookingWidget';
 
@@ -34,6 +36,8 @@ export default function MemberDashboard() {
   const [loading, setLoading] = useState(true);
   const [activitySubTab, setActivitySubTab] = useState<'FEED' | 'BAZAR' | 'UTILITY' | 'MY_DEPOSITS'>('MY_DEPOSITS');
   const [activeTab, setActiveTab] = useState<'BOOKING' | 'MATRIX' | 'FINANCIAL_ACTIVITY'>('BOOKING');
+  const [bazarSearch, setBazarSearch] = useState('');
+  const [depositSearch, setDepositSearch] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -302,549 +306,742 @@ export default function MemberDashboard() {
           {/* TAB 2: UNIFIED FINANCIAL STATEMENT & RECENT ACTIVITY */}
           {activeTab === 'FINANCIAL_ACTIVITY' && (
             <div className="space-y-6">
-              {/* SECTION A: DETAILED FINANCIAL STATEMENT & COST BREAKDOWN */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* 1. Itemized Personal Expense Breakdown */}
-                <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                  <div className="p-5 bg-gradient-to-r from-slate-900 to-slate-800 text-white flex items-center justify-between">
-                    <div>
-                      <h3 className="font-extrabold text-base flex items-center gap-2">
-                        <FileText className="w-5 h-5 text-emerald-400" />
-                        <span>ব্যক্তিগত খরচের হিসাব বিবরণী (Financial Ledger)</span>
-                      </h3>
-                      <p className="text-xs text-slate-300">
-                        {selectedMonth} মাসের মিল ও যৌথ খরচের সম্পূর্ণ বিভাজন
-                      </p>
-                    </div>
-                    <span className="text-xs font-bold bg-white/10 px-2.5 py-1 rounded-lg border border-white/20">
-                      মিল রেট: ৳ {report?.millRate.toFixed(3) || '0.000'}
-                    </span>
-                  </div>
-
-                  <div className="divide-y divide-slate-100 text-sm">
-                    <div className="p-4 flex items-center justify-between hover:bg-slate-50">
-                      <div className="flex items-center space-x-2">
-                        <Utensils className="w-4 h-4 text-emerald-600" />
-                        <span className="text-slate-700 font-semibold">
-                          মিল খরচ ({memberData.meals} টি মিল × ৳{report?.millRate.toFixed(3)})
-                        </span>
-                      </div>
-                      <span className="font-bold text-slate-900">৳ {memberData.mealCost.toFixed(2)}</span>
-                    </div>
-
-                    <div className="p-4 flex items-center justify-between hover:bg-slate-50">
-                      <span className="text-slate-600 font-medium pl-6">খালা বিল শেয়ার (Cook)</span>
-                      <span className="font-semibold text-slate-800">৳ {memberData.khalaBill.toFixed(2)}</span>
-                    </div>
-
-                    <div className="p-4 flex items-center justify-between hover:bg-slate-50">
-                      <span className="text-slate-600 font-medium pl-6">গ্যাস বিল শেয়ার (Gas)</span>
-                      <span className="font-semibold text-slate-800">৳ {memberData.gasBill.toFixed(2)}</span>
-                    </div>
-
-                    <div className="p-4 flex items-center justify-between hover:bg-slate-50">
-                      <span className="text-slate-600 font-medium pl-6">মেসের এক্সট্রা খরচ শেয়ার (Extra)</span>
-                      <span className="font-semibold text-slate-800">৳ {memberData.extraCost.toFixed(2)}</span>
-                    </div>
-
-                    <div className="p-4 flex items-center justify-between hover:bg-slate-50">
-                      <span className="text-slate-600 font-medium pl-6">ফ্রিজ বিল শেয়ার (Fridge)</span>
-                      <span className="font-semibold text-slate-800">৳ {memberData.fridgeBill.toFixed(2)}</span>
-                    </div>
-
-                    <div className="p-4 flex items-center justify-between bg-slate-50 font-extrabold text-base text-slate-900 border-t-2 border-slate-200">
-                      <span>সর্বমোট মেম্বার খরচ (Total Member Cost)</span>
-                      <span className="text-emerald-700">৳ {memberData.totalCost.toFixed(2)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2. Personal Balance & Settlement Card */}
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col justify-between space-y-4">
-                  <div>
-                    <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
-                      <Wallet className="w-4 h-4 text-emerald-600" />
-                      <span>জমা ও চূড়ান্ত ব্যালেন্স অবস্থা</span>
-                    </h4>
-
-                    <div className="space-y-3">
-                      <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200">
-                        <span className="text-xs text-emerald-800 font-semibold block">আপনার মোট জমা (Total Deposit)</span>
-                        <span className="text-2xl font-black text-emerald-900">৳ {memberData.deposit.toFixed(2)}</span>
-                      </div>
-
-                      <div className={`p-3 rounded-xl border ${
-                        dueVal > 0
-                          ? 'bg-red-50 border-red-200'
-                          : refundVal > 0
-                          ? 'bg-emerald-50 border-emerald-200'
-                          : isSettled || settled > 0
-                          ? 'bg-blue-50 border-blue-200'
-                          : 'bg-slate-50 border-slate-200'
-                      }`}>
-                        <span className="text-xs font-semibold block text-slate-600">চলতি নেট দেনা / পাওনা</span>
-                        {dueVal > 0 ? (
-                          <div className="mt-1">
-                            <span className="text-xl font-black text-red-700 block">৳ {dueVal.toFixed(2)}</span>
-                            <span className="text-[10px] font-extrabold text-red-800 uppercase bg-red-100 px-2 py-0.5 rounded-full inline-block mt-1">
-                              ⚠️ মেসে বকেয়া পরিশোধযোগ্য (DUE)
-                            </span>
-                          </div>
-                        ) : refundVal > 0 ? (
-                          <div className="mt-1">
-                            <span className="text-xl font-black text-emerald-700 block">৳ {refundVal.toFixed(2)}</span>
-                            <span className="text-[10px] font-extrabold text-emerald-800 uppercase bg-emerald-100 px-2 py-0.5 rounded-full inline-block mt-1">
-                              💵 মেস থেকে ফেরত পাবেন (REFUND)
-                            </span>
-                          </div>
-                        ) : isSettled || settled > 0 ? (
-                          <div className="mt-1">
-                            <span className="text-xl font-black text-blue-700 block">৳ {settled.toFixed(2)}</span>
-                            <span className="text-[10px] font-extrabold text-blue-800 uppercase bg-blue-100 px-2 py-0.5 rounded-full inline-block mt-1">
-                              ✅ সম্পূর্ণ পরিশোধিত / সমন্বিত (SETTLED)
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="mt-1">
-                            <span className="text-xl font-black text-slate-800 block">৳ 0.00</span>
-                            <span className="text-[10px] font-bold text-slate-600 uppercase bg-slate-200 px-2 py-0.5 rounded-full inline-block mt-1">
-                              সম্পূর্ণ ব্যালেন্সড
-                            </span>
-                          </div>
-                        )}
+              {/* CARD 1: PERSONAL FINANCIAL STATEMENT & VOUCHER */}
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                {/* Header */}
+                <div className="p-5 sm:p-6 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <span className="p-2 bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30">
+                        <FileText className="w-5 h-5" />
+                      </span>
+                      <div>
+                        <h3 className="font-extrabold text-lg sm:text-xl tracking-tight text-white">
+                          ব্যক্তিগত মাসিক আর্থিক বিবরণী (Monthly Statement)
+                        </h3>
+                        <p className="text-xs text-slate-300">
+                          {selectedMonth} মাসের মিল ও যৌথ খরচের আইটেমাইজড লেজার ভাউচার
+                        </p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="pt-3 border-t border-slate-100 text-xs text-slate-500 flex items-center justify-between">
-                    <span>মেসের ক্যাশ ইন হ্যান্ড:</span>
-                    <span className="font-bold text-slate-800">৳ {report?.cashInHand !== undefined ? report.cashInHand.toFixed(2) : '0.00'}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* SECTION B: RECENT ACTIVITIES, BAZAR, UTILITIES & MY DEPOSITS */}
-              <div className="bg-white p-4 sm:p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-                  <div>
-                    <h3 className="font-extrabold text-slate-900 text-lg sm:text-xl flex items-center gap-2">
-                      <History className="w-5 h-5 text-emerald-600" />
-                      <span>মেসের রিসেন্ট অ্যাক্টিভিটি ও লেনদেন ({selectedMonth})</span>
-                    </h3>
-                    <p className="text-xs sm:text-sm text-slate-500">
-                      ম্যানেজার চলতি মাসে যেসব বাজার, ইউটিলিটি এবং শুধুমাত্র আপনার অ্যাকাউন্টে যেসব জমা এন্ট্রি দিয়েছেন তার লাইভ হিসাব
-                    </p>
-                  </div>
-                  <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200 self-start sm:self-auto flex items-center gap-1.5">
-                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>লাইভ আপডেট সক্রিয়</span>
-                  </span>
-                </div>
-
-              {/* 3 Executive Summary Cards for Member */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                {/* 1. Month's Total Bazar */}
-                <div className="p-4 bg-blue-50/70 rounded-2xl border-2 border-blue-200 space-y-1.5 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-black uppercase text-blue-800">
-                      🛒 এই মাসের মোট বাজার
-                    </span>
-                    <ShoppingBag className="w-4 h-4 text-blue-600" />
-                  </div>
-                  <p className="text-2xl font-black text-blue-950">
-                    ৳ {bazarList.reduce((sum, b) => sum + (b.amount || 0), 0).toLocaleString()}
-                  </p>
-                  <p className="text-[11px] font-semibold text-blue-700">
-                    মোট {bazarList.length} টি বাজারের এন্ট্রি
-                  </p>
-                </div>
-
-                {/* 2. Month's Utilities */}
-                <div className="p-4 bg-purple-50/70 rounded-2xl border-2 border-purple-200 space-y-1.5 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-black uppercase text-purple-800">
-                      ⚡ মোট ইউটিলিটি বিল
-                    </span>
-                    <Receipt className="w-4 h-4 text-purple-600" />
-                  </div>
-                  <p className="text-2xl font-black text-purple-950">
-                    ৳ {utilityList.reduce((sum, u) => sum + (u.amount || 0), 0).toLocaleString()}
-                  </p>
-                  <p className="text-[11px] font-semibold text-purple-700">
-                    খালা, গ্যাস, ফ্রিজ ও অন্যান্য ফিক্সড খরচ
-                  </p>
-                </div>
-
-                {/* 3. My Personal Deposit */}
-                <div className="p-4 bg-emerald-50/70 rounded-2xl border-2 border-emerald-300 space-y-1.5 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-black uppercase text-emerald-800">
-                      💰 শুধুমাত্র আপনার জমা
-                    </span>
-                    <DollarSign className="w-4 h-4 text-emerald-600" />
-                  </div>
-                  <p className="text-2xl font-black text-emerald-950">
-                    ৳ {myDeposits.reduce((sum, d) => sum + (d.amount || 0), 0).toLocaleString()}
-                  </p>
-                  <p className="text-[11px] font-semibold text-emerald-700 flex items-center gap-1">
-                    <Lock className="w-3 h-3 text-emerald-600" />
-                    <span>গোপনীয়: শুধু আপনার {myDeposits.length} টি জমা</span>
-                  </p>
-                </div>
-              </div>
-
-              {/* Sub-Tab Navigation */}
-              <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3">
-                <button
-                  type="button"
-                  onClick={() => setActivitySubTab('FEED')}
-                  className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
-                    activitySubTab === 'FEED'
-                      ? 'bg-slate-900 text-white shadow'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  <History className="w-4 h-4" />
-                  <span>টাইমলাইন ফিড</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActivitySubTab('BAZAR')}
-                  className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
-                    activitySubTab === 'BAZAR'
-                      ? 'bg-blue-600 text-white shadow'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  <ShoppingBag className="w-4 h-4" />
-                  <span>বাজার তালিকা ({bazarList.length})</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActivitySubTab('UTILITY')}
-                  className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
-                    activitySubTab === 'UTILITY'
-                      ? 'bg-purple-600 text-white shadow'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  <Receipt className="w-4 h-4" />
-                  <span>ইউটিলিটি তালিকা ({utilityList.length})</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActivitySubTab('MY_DEPOSITS')}
-                  className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
-                    activitySubTab === 'MY_DEPOSITS'
-                      ? 'bg-emerald-600 text-white shadow'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  <DollarSign className="w-4 h-4" />
-                  <span>আমার নিজের জমা ({myDeposits.length})</span>
-                </button>
-              </div>
-
-              {/* SUB-TAB 1: TIMELINE FEED */}
-              {activitySubTab === 'FEED' && (
-                <div className="space-y-3">
-                  {activities.length === 0 && myDeposits.length === 0 && bazarList.length === 0 ? (
-                    <div className="p-10 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                      <Clock className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                      <p className="text-sm font-medium">{selectedMonth} মাসের কোনো অ্যাক্টিভিটি রেকর্ড নেই।</p>
+                  <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                    <div className="bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/15 text-xs font-bold text-emerald-300 flex items-center space-x-1.5">
+                      <span>মিল রেট:</span>
+                      <span className="font-mono text-sm text-white">৳ {report?.millRate.toFixed(3) || '0.000'}</span>
                     </div>
-                  ) : (
-                    activities.map((act) => {
-                      const isMyDeposit = act.targetMemberId === user?.id;
-                      const isBazar = act.action === 'BAZAR_LOGGED';
-                      const isUtility = act.action === 'UTILITY_LOGGED';
-                      const isMeals = act.action === 'MEALS_UPDATED' || act.action === 'LOCK_AND_SYNC_MEALS';
+                    <button
+                      type="button"
+                      onClick={() => window.print()}
+                      className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center space-x-1.5 cursor-pointer"
+                      title="ভাউচার প্রিন্ট করুন"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      <span>প্রিন্ট ভাউচার</span>
+                    </button>
+                  </div>
+                </div>
 
-                      return (
-                        <div
-                          key={act.id}
-                          className={`p-4 rounded-2xl border transition-all flex items-start gap-3.5 ${
-                            isMyDeposit
-                              ? 'bg-emerald-50/70 border-emerald-300 shadow-sm'
-                              : isBazar
-                              ? 'bg-blue-50/40 border-blue-200'
-                              : isUtility
-                              ? 'bg-purple-50/40 border-purple-200'
-                              : 'bg-slate-50 border-slate-200'
-                          }`}
-                        >
-                          <div
-                            className={`p-2.5 rounded-xl flex-shrink-0 mt-0.5 ${
-                              isMyDeposit
-                                ? 'bg-emerald-600 text-white'
-                                : isBazar
-                                ? 'bg-blue-600 text-white'
-                                : isUtility
-                                ? 'bg-purple-600 text-white'
-                                : 'bg-slate-700 text-white'
-                            }`}
-                          >
-                            {isMyDeposit ? (
-                              <DollarSign className="w-4 h-4" />
-                            ) : isBazar ? (
-                              <ShoppingBag className="w-4 h-4" />
-                            ) : isUtility ? (
-                              <Receipt className="w-4 h-4" />
-                            ) : isMeals ? (
-                              <Utensils className="w-4 h-4" />
-                            ) : (
-                              <History className="w-4 h-4" />
-                            )}
-                          </div>
+                {/* Quick KPI Strip inside voucher */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-slate-100 bg-slate-50/80 border-b border-slate-200 text-xs">
+                  <div className="p-3.5 sm:p-4 text-center">
+                    <span className="text-[11px] font-bold text-slate-500 block uppercase">মোট মিল সংখ্যা</span>
+                    <span className="text-lg font-black text-slate-800">{memberData.meals} টি</span>
+                  </div>
+                  <div className="p-3.5 sm:p-4 text-center">
+                    <span className="text-[11px] font-bold text-slate-500 block uppercase">মিল বাবদ খরচ</span>
+                    <span className="text-lg font-black text-emerald-700">৳ {memberData.mealCost.toFixed(2)}</span>
+                  </div>
+                  <div className="p-3.5 sm:p-4 text-center">
+                    <span className="text-[11px] font-bold text-slate-500 block uppercase">শেয়ার্ড ইউটিলিটি</span>
+                    <span className="text-lg font-black text-purple-700">
+                      ৳ {(memberData.khalaBill + memberData.gasBill + memberData.extraCost + memberData.fridgeBill).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="p-3.5 sm:p-4 text-center">
+                    <span className="text-[11px] font-bold text-slate-500 block uppercase">মোট রেকর্ডকৃত জমা</span>
+                    <span className="text-lg font-black text-blue-700">৳ {memberData.deposit.toFixed(2)}</span>
+                  </div>
+                </div>
 
-                          <div className="flex-1 min-w-0">
-                            <div className="flex flex-wrap items-center justify-between gap-1 mb-1">
-                              <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                                {isMyDeposit ? (
-                                  <span className="bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-md">
-                                    💰 আমার জমা এন্ট্রি
-                                  </span>
-                                ) : isBazar ? (
-                                  <span className="bg-blue-600 text-white text-[10px] font-black px-2 py-0.5 rounded-md">
-                                    🛒 মেসের দৈনিক বাজার
-                                  </span>
-                                ) : isUtility ? (
-                                  <span className="bg-purple-600 text-white text-[10px] font-black px-2 py-0.5 rounded-md">
-                                    ⚡ ইউটিলিটি বিল
-                                  </span>
-                                ) : (
-                                  <span className="bg-slate-600 text-white text-[10px] font-black px-2 py-0.5 rounded-md">
-                                    🍽️ মিল এন্ট্রি
-                                  </span>
-                                )}
-                                <span className="text-slate-600 font-semibold">{act.userName || 'ম্যানেজার'}</span>
-                              </span>
-                              <span className="text-[11px] text-slate-400 font-medium">
-                                {new Date(act.timestamp).toLocaleString('bn-BD', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })}
+                {/* Statement Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs sm:text-sm border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100/80 text-slate-700 font-extrabold uppercase text-[11px] border-b border-slate-200">
+                        <th className="py-3 px-4 sm:px-6">খাত / খরচের বিবরণ</th>
+                        <th className="py-3 px-4 hidden sm:table-cell">ক্যালকুলেশন মেথড</th>
+                        <th className="py-3 px-4 sm:px-6 text-right font-black">টাকার পরিমাণ (৳)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      <tr className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3 px-4 sm:px-6">
+                          <div className="flex items-center space-x-2.5">
+                            <span className="p-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-sm">🍽️</span>
+                            <div>
+                              <span className="font-bold text-slate-800 block">মিল খরচ (Meal Cost)</span>
+                              <span className="text-xs text-slate-400 sm:hidden">
+                                {memberData.meals} টি মিল × ৳{report?.millRate.toFixed(3)}
                               </span>
                             </div>
-                            <p className="text-xs sm:text-sm font-semibold text-slate-800 leading-snug">
-                              {act.details}
-                            </p>
                           </div>
+                        </td>
+                        <td className="py-3 px-4 text-xs text-slate-600 hidden sm:table-cell font-medium">
+                          {memberData.meals} টি মিল × ৳ {report?.millRate.toFixed(3)}
+                        </td>
+                        <td className="py-3 px-4 sm:px-6 text-right font-bold font-mono text-slate-800">
+                          ৳ {memberData.mealCost.toFixed(2)}
+                        </td>
+                      </tr>
+
+                      <tr className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3 px-4 sm:px-6">
+                          <div className="flex items-center space-x-2.5">
+                            <span className="p-1.5 bg-amber-100 text-amber-700 rounded-lg text-sm">👩‍🍳</span>
+                            <div>
+                              <span className="font-bold text-slate-800 block">খালা বিল শেয়ার (Cook Bill)</span>
+                              <span className="text-xs text-slate-400 sm:hidden">রান্নার বুয়ার মাসিক বেতন শেয়ার</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-xs text-slate-600 hidden sm:table-cell font-medium">
+                          মেসের সকল সক্রিয় সদস্যের সমান শেয়ার
+                        </td>
+                        <td className="py-3 px-4 sm:px-6 text-right font-bold font-mono text-slate-800">
+                          ৳ {memberData.khalaBill.toFixed(2)}
+                        </td>
+                      </tr>
+
+                      <tr className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3 px-4 sm:px-6">
+                          <div className="flex items-center space-x-2.5">
+                            <span className="p-1.5 bg-orange-100 text-orange-700 rounded-lg text-sm">🔥</span>
+                            <div>
+                              <span className="font-bold text-slate-800 block">গ্যাস বিল শেয়ার (Gas Cylinder/Line)</span>
+                              <span className="text-xs text-slate-400 sm:hidden">সিলিন্ডার বা লাইন গ্যাস খরচ শেয়ার</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-xs text-slate-600 hidden sm:table-cell font-medium">
+                          মেসের সক্রিয় সদস্যদের সমান শেয়ার
+                        </td>
+                        <td className="py-3 px-4 sm:px-6 text-right font-bold font-mono text-slate-800">
+                          ৳ {memberData.gasBill.toFixed(2)}
+                        </td>
+                      </tr>
+
+                      <tr className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3 px-4 sm:px-6">
+                          <div className="flex items-center space-x-2.5">
+                            <span className="p-1.5 bg-cyan-100 text-cyan-700 rounded-lg text-sm">❄️</span>
+                            <div>
+                              <span className="font-bold text-slate-800 block">ফ্রিজ বিল শেয়ার (Refrigerator Charge)</span>
+                              <span className="text-xs text-slate-400 sm:hidden">ফ্রিজ সার্ভিসিং ও ব্যবহার চার্জ</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-xs text-slate-600 hidden sm:table-cell font-medium">
+                          মেসের সক্রিয় সদস্যদের সমান শেয়ার
+                        </td>
+                        <td className="py-3 px-4 sm:px-6 text-right font-bold font-mono text-slate-800">
+                          ৳ {memberData.fridgeBill.toFixed(2)}
+                        </td>
+                      </tr>
+
+                      <tr className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3 px-4 sm:px-6">
+                          <div className="flex items-center space-x-2.5">
+                            <span className="p-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-sm">📦</span>
+                            <div>
+                              <span className="font-bold text-slate-800 block">বিবিধ / এক্সট্রা খরচ শেয়ার (Extra Cost)</span>
+                              <span className="text-xs text-slate-400 sm:hidden">মসলা, তেল, ওয়াইফাই ও অন্যান্য যৌথ খরচ</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-xs text-slate-600 hidden sm:table-cell font-medium">
+                          মেসের সকল সদস্যের যৌথ শেয়ার
+                        </td>
+                        <td className="py-3 px-4 sm:px-6 text-right font-bold font-mono text-slate-800">
+                          ৳ {memberData.extraCost.toFixed(2)}
+                        </td>
+                      </tr>
+                    </tbody>
+
+                    {/* Summary Footer */}
+                    <tfoot className="divide-y divide-slate-200 border-t-2 border-slate-300 bg-slate-50/70">
+                      {/* Subtotal Row */}
+                      <tr className="font-bold text-slate-900">
+                        <td className="py-3 px-4 sm:px-6">সর্বমোট ব্যক্তিগত খরচ (Total Personal Cost)</td>
+                        <td className="py-3 px-4 hidden sm:table-cell text-xs text-slate-500 font-normal">
+                          মিল খরচ + সকল শেয়ার্ড ইউটিলিটি
+                        </td>
+                        <td className="py-3 px-4 sm:px-6 text-right font-black font-mono text-slate-900 text-base">
+                          ৳ {memberData.totalCost.toFixed(2)}
+                        </td>
+                      </tr>
+
+                      {/* Deposit Row */}
+                      <tr className="font-bold text-emerald-800 bg-emerald-50/50">
+                        <td className="py-3 px-4 sm:px-6">
+                          বাদ: আপনার মোট পরিশোধিত জমা (Total Deposit Paid)
+                        </td>
+                        <td className="py-3 px-4 hidden sm:table-cell text-xs text-emerald-700 font-normal">
+                          ক্যাশ বা বিকাশ মারফত ম্যানেজারের কাছে জমা
+                        </td>
+                        <td className="py-3 px-4 sm:px-6 text-right font-black font-mono text-emerald-700 text-base">
+                          - ৳ {memberData.deposit.toFixed(2)}
+                        </td>
+                      </tr>
+
+                      {/* Net Final Balance Row */}
+                      <tr className={
+                        dueVal > 0
+                          ? 'bg-red-50 text-red-900 font-black'
+                          : refundVal > 0
+                          ? 'bg-emerald-100 text-emerald-950 font-black'
+                          : isSettled || settled > 0
+                          ? 'bg-blue-50 text-blue-950 font-black'
+                          : 'bg-slate-100 text-slate-900 font-black'
+                      }>
+                        <td className="py-4 px-4 sm:px-6">
+                          <div className="flex items-center space-x-2">
+                            <span>
+                              {dueVal > 0
+                                ? '⚠️ নেট প্রদেয় বকেয়া (DUE PAYABLE)'
+                                : refundVal > 0
+                                ? '💵 মেস থেকে আপনার ফেরত প্রাপ্য (REFUND)'
+                                : isSettled || settled > 0
+                                ? '✅ সেটেলমেন্ট সম্পন্ন (SETTLED)'
+                                : '✓ ব্যালেন্সড অবস্থা (BALANCED)'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 hidden sm:table-cell text-xs font-normal">
+                          {dueVal > 0
+                            ? 'ম্যানেজারকে এই টাকা পরিশোধ করতে হবে'
+                            : refundVal > 0
+                            ? 'মেসের ফান্ড থেকে এই টাকা আপনাকে ফেরত দেওয়া হবে'
+                            : isSettled || settled > 0
+                            ? 'চলতি মাসের দেনা-পাওনা পরিশোধিত ও সমন্বিত'
+                            : 'কোনো বকেয়া বা ফেরত অবশিষ্ট নেই'}
+                        </td>
+                        <td className="py-4 px-4 sm:px-6 text-right font-black font-mono text-lg sm:text-xl">
+                          {dueVal > 0
+                            ? `৳ ${dueVal.toFixed(2)}`
+                            : refundVal > 0
+                            ? `৳ ${refundVal.toFixed(2)}`
+                            : isSettled || settled > 0
+                            ? `৳ ${settled.toFixed(2)}`
+                            : `৳ 0.00`}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+
+              {/* CARD 2: TRANSPARENT MESS LEDGER & ACTIVITY HUB */}
+              <div className="bg-white p-5 sm:p-7 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+                {/* Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-5">
+                  <div>
+                    <h3 className="font-extrabold text-slate-900 text-lg sm:text-xl flex items-center gap-2">
+                      <span className="p-2 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-200">
+                        <History className="w-5 h-5" />
+                      </span>
+                      <span>মেসের খরচের খতিয়ান ও লেনদেন রেকর্ড ({selectedMonth})</span>
+                    </h3>
+                    <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                      মেসের সামগ্রিক বাজার, ইউটিলিটি বিল এবং আপনার ব্যক্তিগত জমার সম্পূর্ণ স্বচ্ছ বিবরণী
+                    </p>
+                  </div>
+
+                  <div className="flex items-center space-x-2 self-start sm:self-auto bg-slate-100 text-slate-700 px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-200">
+                    <Wallet className="w-4 h-4 text-slate-500" />
+                    <span>মেসের ক্যাশ ইন হ্যান্ড:</span>
+                    <span className="font-mono font-black text-emerald-700">
+                      ৳ {report?.cashInHand !== undefined ? report.cashInHand.toFixed(2) : '0.00'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 3 Executive Summary Pills */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                  {/* Total Bazar Card */}
+                  <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-50/30 rounded-2xl border border-blue-200 space-y-1 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-extrabold uppercase text-blue-800 flex items-center gap-1.5">
+                        <ShoppingBag className="w-4 h-4 text-blue-600" />
+                        <span>মেসের মোট বাজার</span>
+                      </span>
+                      <span className="text-[11px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                        {bazarList.length} টি
+                      </span>
+                    </div>
+                    <p className="text-2xl font-black text-blue-950 font-mono">
+                      ৳ {bazarList.reduce((sum, b) => sum + (Number(b.amount) || 0), 0).toLocaleString()}
+                    </p>
+                    <p className="text-[11px] font-medium text-blue-700">চলতি মাসের সমস্ত বাজারের সম্মিলিত যোগফল</p>
+                  </div>
+
+                  {/* Total Utility Card */}
+                  <div className="p-4 bg-gradient-to-br from-purple-50 to-purple-50/30 rounded-2xl border border-purple-200 space-y-1 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-extrabold uppercase text-purple-800 flex items-center gap-1.5">
+                        <Receipt className="w-4 h-4 text-purple-600" />
+                        <span>মোট ইউটিলিটি বিল</span>
+                      </span>
+                      <span className="text-[11px] font-bold bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full">
+                        {utilityList.length} টি খাত
+                      </span>
+                    </div>
+                    <p className="text-2xl font-black text-purple-950 font-mono">
+                      ৳ {utilityList.reduce((sum, u) => sum + (Number(u.amount) || 0), 0).toLocaleString()}
+                    </p>
+                    <p className="text-[11px] font-medium text-purple-700">খালা, গ্যাস, ফ্রিজ ও বিবিধ যৌথ বিল</p>
+                  </div>
+
+                  {/* My Personal Deposit Card */}
+                  <div className="p-4 bg-gradient-to-br from-emerald-50 to-emerald-50/30 rounded-2xl border border-emerald-300 space-y-1 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-extrabold uppercase text-emerald-800 flex items-center gap-1.5">
+                        <DollarSign className="w-4 h-4 text-emerald-600" />
+                        <span>আপনার মোট জমা</span>
+                      </span>
+                      <span className="text-[11px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                        {myDeposits.length} টি
+                      </span>
+                    </div>
+                    <p className="text-2xl font-black text-emerald-950 font-mono">
+                      ৳ {myDeposits.reduce((sum, d) => sum + (Number(d.amount) || 0), 0).toLocaleString()}
+                    </p>
+                    <p className="text-[11px] font-medium text-emerald-700 flex items-center gap-1">
+                      <Lock className="w-3 h-3 text-emerald-600" />
+                      <span>গোপনীয়: শুধুমাত্র আপনার ব্যক্তিগত ডিপোজিট</span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* Sub-Tab Navigation (Segmented Switcher) */}
+                <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3">
+                  <button
+                    type="button"
+                    onClick={() => setActivitySubTab('MY_DEPOSITS')}
+                    className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                      activitySubTab === 'MY_DEPOSITS'
+                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    <DollarSign className="w-4 h-4" />
+                    <span>আমার জমা খাতা ({myDeposits.length})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActivitySubTab('BAZAR')}
+                    className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                      activitySubTab === 'BAZAR'
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    <ShoppingBag className="w-4 h-4" />
+                    <span>বাজারের তালিকা ({bazarList.length})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActivitySubTab('UTILITY')}
+                    className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                      activitySubTab === 'UTILITY'
+                        ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    <Receipt className="w-4 h-4" />
+                    <span>ইউটিলিটি তালিকা ({utilityList.length})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActivitySubTab('FEED')}
+                    className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                      activitySubTab === 'FEED'
+                        ? 'bg-slate-900 text-white shadow-md shadow-slate-900/20'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    <History className="w-4 h-4" />
+                    <span>টাইমলাইন ফিড ({activities.length})</span>
+                  </button>
+                </div>
+
+                {/* SUB-TAB 1: MY PERSONAL DEPOSITS */}
+                {activitySubTab === 'MY_DEPOSITS' && (
+                  <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-emerald-50/70 p-3.5 rounded-2xl border border-emerald-200 text-xs">
+                      <div className="flex items-center space-x-2 text-emerald-900 font-semibold">
+                        <Lock className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                        <span>
+                          শতভাগ গোপনীয়তা: শুধুমাত্র আপনার অ্যাকাউন্টে ম্যানেজার কর্তৃক প্রদত্ত জমার রেকর্ড এখানে দেখা যাচ্ছে।
+                        </span>
+                      </div>
+                      {myDeposits.length > 2 && (
+                        <div className="relative w-full sm:w-56">
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            placeholder="তারিখ বা নোট দিয়ে খুঁজুন..."
+                            value={depositSearch}
+                            onChange={(e) => setDepositSearch(e.target.value)}
+                            className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                          />
                         </div>
-                      );
-                    })
-                  )}
-                </div>
-              )}
+                      )}
+                    </div>
 
-              {/* SUB-TAB 2: BAZAR TABLE */}
-              {activitySubTab === 'BAZAR' && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-600">
-                      চলতি মাসের বাজার খরচের আইটেমাইজড তালিকা:
-                    </span>
-                    <span className="text-xs font-black text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200">
-                      মোট: ৳ {bazarList.reduce((sum, b) => sum + (b.amount || 0), 0).toLocaleString()}
-                    </span>
-                  </div>
-
-                  <div className="overflow-x-auto rounded-2xl border border-slate-200">
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase border-b border-slate-200">
-                        <tr>
-                          <th className="py-2.5 px-3 w-28">তারিখ</th>
-                          <th className="py-2.5 px-4">বাজারের বিবরণ / কি কি কেনা হয়েছে</th>
-                          <th className="py-2.5 px-3">বাজারকারী</th>
-                          <th className="py-2.5 px-3 text-right font-black">খরচ (৳)</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {bazarList.length === 0 ? (
+                    <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase border-b border-slate-200 text-[11px]">
                           <tr>
-                            <td colSpan={4} className="p-8 text-center text-slate-500">
-                              এই মাসে কোনো বাজারের এন্ট্রি নেই।
-                            </td>
+                            <th className="py-3 px-4 w-32">তারিখ</th>
+                            <th className="py-3 px-4">পেমেন্ট বিবরণ / নোট</th>
+                            <th className="py-3 px-4 text-right font-black">জমার পরিমাণ (৳)</th>
                           </tr>
-                        ) : (
-                          bazarList.map((b, idx) => (
-                            <tr
-                              key={b.id}
-                              className={`hover:bg-slate-50 transition-colors ${
-                                idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
-                              }`}
-                            >
-                              <td className="py-2.5 px-3 font-bold text-slate-700 whitespace-nowrap">
-                                {b.date}
-                              </td>
-                              <td className="py-2.5 px-4 font-semibold text-slate-800">
-                                {b.description || 'দৈনিক বাজার'}
-                              </td>
-                              <td className="py-2.5 px-3 text-slate-700">
-                                {b.shopperName ? (
-                                  <span className="font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md text-[11px] inline-flex items-center gap-1">
-                                    <span>👤</span> {b.shopperName}
-                                  </span>
-                                ) : (
-                                  <span className="text-slate-400 text-xs">—</span>
-                                )}
-                              </td>
-                              <td className="py-2.5 px-3 text-right font-black text-blue-900 text-xs sm:text-sm">
-                                ৳ {b.amount.toLocaleString()}
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {myDeposits.length === 0 ? (
+                            <tr>
+                              <td colSpan={3} className="p-8 text-center text-slate-500 font-medium">
+                                এই মাসে আপনার কোনো জমার রেকর্ড পাওয়া যায়নি।
                               </td>
                             </tr>
-                          ))
-                        )}
-                      </tbody>
-
-                      <tfoot className="bg-blue-50 text-blue-950 font-black text-xs border-t-2 border-blue-200">
-                        <tr>
-                          <td colSpan={2} className="py-3 px-4 uppercase">
-                            সর্বমোট বাজার ({bazarList.length} টি)
-                          </td>
-                          <td className="py-3 px-3 text-right font-black text-sm text-blue-900">
-                            ৳ {bazarList.reduce((sum, b) => sum + (b.amount || 0), 0).toLocaleString()}
-                          </td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* SUB-TAB 3: UTILITY TABLE */}
-              {activitySubTab === 'UTILITY' && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-600">
-                      চলতি মাসের ইউটিলিটি খরচের তালিকা:
-                    </span>
-                    <span className="text-xs font-black text-purple-700 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200">
-                      মোট: ৳ {utilityList.reduce((sum, u) => sum + (u.amount || 0), 0).toLocaleString()}
-                    </span>
-                  </div>
-
-                  <div className="overflow-x-auto rounded-2xl border border-slate-200">
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase border-b border-slate-200">
-                        <tr>
-                          <th className="py-2.5 px-3 w-36">ক্যাটেগরি</th>
-                          <th className="py-2.5 px-4">বিবরণ</th>
-                          <th className="py-2.5 px-3 text-right font-black">টাকার পরিমাণ (৳)</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {utilityList.length === 0 ? (
+                          ) : (
+                            myDeposits
+                              .filter((d) => {
+                                if (!depositSearch.trim()) return true;
+                                const term = depositSearch.toLowerCase();
+                                return (
+                                  (d.note || '').toLowerCase().includes(term) ||
+                                  (d.date || '').includes(term) ||
+                                  String(d.amount || '').includes(term)
+                                );
+                              })
+                              .map((d, idx) => (
+                                <tr
+                                  key={d.id}
+                                  className={`hover:bg-slate-50 transition-colors ${
+                                    idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
+                                  }`}
+                                >
+                                  <td className="py-3 px-4 font-bold text-slate-700 whitespace-nowrap">
+                                    {d.date}
+                                  </td>
+                                  <td className="py-3 px-4 font-semibold text-slate-800">
+                                    {d.note || 'ম্যানেজার কর্তৃক জমা রেকর্ড'}
+                                  </td>
+                                  <td
+                                    className={`py-3 px-4 text-right font-black text-xs sm:text-sm font-mono ${
+                                      d.amount < 0 ? 'text-red-600' : 'text-emerald-700'
+                                    }`}
+                                  >
+                                    {d.amount < 0 ? `- ৳ ${Math.abs(d.amount).toFixed(2)}` : `৳ ${d.amount.toFixed(2)}`}
+                                  </td>
+                                </tr>
+                              ))
+                          )}
+                        </tbody>
+                        <tfoot className="bg-emerald-50 text-emerald-950 font-black text-xs border-t-2 border-emerald-300">
                           <tr>
-                            <td colSpan={3} className="p-8 text-center text-slate-500">
-                              এই মাসে কোনো ইউটিলিটি খরচের রেকর্ড নেই।
+                            <td colSpan={2} className="py-3 px-4 uppercase">
+                              শুধুমাত্র আপনার মোট জমা ({myDeposits.length} টি এন্ট্রি)
+                            </td>
+                            <td className="py-3 px-4 text-right font-black text-sm text-emerald-900 font-mono">
+                              ৳ {myDeposits.reduce((sum, d) => sum + (Number(d.amount) || 0), 0).toFixed(2)}
                             </td>
                           </tr>
-                        ) : (
-                          utilityList.map((u, idx) => (
-                            <tr
-                              key={u.id}
-                              className={`hover:bg-slate-50 transition-colors ${
-                                idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
-                              }`}
-                            >
-                              <td className="py-2.5 px-3 font-bold text-slate-800">
-                                {u.category}
-                              </td>
-                              <td className="py-2.5 px-4 font-semibold text-slate-700">
-                                {u.description || u.category}
-                              </td>
-                              <td className="py-2.5 px-3 text-right font-black text-purple-900 text-xs sm:text-sm">
-                                ৳ {u.amount.toLocaleString()}
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* SUB-TAB 2: BAZAR LIST */}
+                {activitySubTab === 'BAZAR' && (
+                  <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="relative flex-1 max-w-sm">
+                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          placeholder="বাজারের আইটেম, বিবরণ বা তারিখ দিয়ে খুঁজুন..."
+                          value={bazarSearch}
+                          onChange={(e) => setBazarSearch(e.target.value)}
+                          className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        />
+                      </div>
+
+                      <span className="text-xs font-extrabold text-blue-700 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-200 self-start sm:self-auto font-mono">
+                        মোট বাজার: ৳ {bazarList.reduce((sum, b) => sum + (Number(b.amount) || 0), 0).toLocaleString()}
+                      </span>
+                    </div>
+
+                    <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase border-b border-slate-200 text-[11px]">
+                          <tr>
+                            <th className="py-3 px-4 w-28">তারিখ</th>
+                            <th className="py-3 px-4">বাজারের বিবরণ / কি কি কেনা হয়েছে</th>
+                            <th className="py-3 px-4 w-36">বাজারকারী</th>
+                            <th className="py-3 px-4 text-right font-black w-28">খরচ (৳)</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {bazarList.length === 0 ? (
+                            <tr>
+                              <td colSpan={4} className="p-8 text-center text-slate-500 font-medium">
+                                এই মাসে কোনো বাজারের এন্ট্রি নেই।
                               </td>
                             </tr>
-                          ))
-                        )}
-                      </tbody>
-                      <tfoot className="bg-purple-50 text-purple-950 font-black text-xs border-t-2 border-purple-200">
-                        <tr>
-                          <td colSpan={2} className="py-3 px-4 uppercase">
-                            সর্বমোট ইউটিলিটি ({utilityList.length} টি)
-                          </td>
-                          <td className="py-3 px-3 text-right font-black text-sm text-purple-900">
-                            ৳ {utilityList.reduce((sum, u) => sum + (u.amount || 0), 0).toLocaleString()}
-                          </td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* SUB-TAB 4: ONLY MY DEPOSITS */}
-              {activitySubTab === 'MY_DEPOSITS' && (
-                <div className="space-y-3">
-                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center space-x-2 text-emerald-900 text-xs font-semibold">
-                    <Lock className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                    <span>
-                      🔒 গোপনীয়তা রক্ষা: আপনার একাউন্টে ম্যানেজার যে টাকা জমা দিয়েছেন শুধুমাত্র সেটাই এখানে দেখা যাচ্ছে। অন্য কোনো মেম্বারের জমা প্রদর্শন করা হয় না।
-                    </span>
-                  </div>
-
-                  <div className="overflow-x-auto rounded-2xl border border-slate-200">
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase border-b border-slate-200">
-                        <tr>
-                          <th className="py-2.5 px-3 w-28">তারিখ</th>
-                          <th className="py-2.5 px-4">পেমেন্ট বিবরণ / নোট</th>
-                          <th className="py-2.5 px-3 text-right font-black">জমার পরিমাণ (৳)</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {myDeposits.length === 0 ? (
+                          ) : (
+                            bazarList
+                              .filter((b) => {
+                                if (!bazarSearch.trim()) return true;
+                                const term = bazarSearch.toLowerCase();
+                                return (
+                                  (b.description || '').toLowerCase().includes(term) ||
+                                  (b.shopperName || '').toLowerCase().includes(term) ||
+                                  (b.date || '').includes(term) ||
+                                  String(b.amount || '').includes(term)
+                                );
+                              })
+                              .map((b, idx) => (
+                                <tr
+                                  key={b.id}
+                                  className={`hover:bg-slate-50 transition-colors ${
+                                    idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
+                                  }`}
+                                >
+                                  <td className="py-3 px-4 font-bold text-slate-700 whitespace-nowrap">
+                                    {b.date}
+                                  </td>
+                                  <td className="py-3 px-4 font-semibold text-slate-800">
+                                    {b.description || 'দৈনিক বাজার'}
+                                  </td>
+                                  <td className="py-3 px-4 text-slate-700">
+                                    {b.shopperName ? (
+                                      <span className="font-bold text-slate-800 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md text-[11px] inline-flex items-center gap-1">
+                                        <span>👤</span> {b.shopperName}
+                                      </span>
+                                    ) : (
+                                      <span className="text-slate-400 text-xs">—</span>
+                                    )}
+                                  </td>
+                                  <td className="py-3 px-4 text-right font-black text-blue-900 text-xs sm:text-sm font-mono whitespace-nowrap">
+                                    ৳ {b.amount.toLocaleString()}
+                                  </td>
+                                </tr>
+                              ))
+                          )}
+                        </tbody>
+                        <tfoot className="bg-blue-50 text-blue-950 font-black text-xs border-t-2 border-blue-200">
                           <tr>
-                            <td colSpan={3} className="p-8 text-center text-slate-500">
-                              এই মাসে আপনার কোনো জমা এন্ট্রি পাওয়া যায়নি।
+                            <td colSpan={3} className="py-3 px-4 uppercase">
+                              সর্বমোট বাজার ({bazarList.length} টি রেকর্ড)
+                            </td>
+                            <td className="py-3 px-4 text-right font-black text-sm text-blue-900 font-mono whitespace-nowrap">
+                              ৳ {bazarList.reduce((sum, b) => sum + (Number(b.amount) || 0), 0).toLocaleString()}
                             </td>
                           </tr>
-                        ) : (
-                          myDeposits.map((d, idx) => (
-                            <tr
-                              key={d.id}
-                              className={`hover:bg-slate-50 transition-colors ${
-                                idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
-                              }`}
-                            >
-                              <td className="py-2.5 px-3 font-bold text-slate-700 whitespace-nowrap">
-                                {d.date}
-                              </td>
-                              <td className="py-2.5 px-4 font-semibold text-slate-800">
-                                {d.note || 'ম্যানেজার কর্তৃক জমা রেকর্ড'}
-                              </td>
-                              <td className={`py-2.5 px-3 text-right font-black text-xs sm:text-sm ${d.amount < 0 ? 'text-red-600' : 'text-emerald-800'}`}>
-                                {d.amount < 0 ? `- ৳ ${Math.abs(d.amount).toLocaleString()}` : `৳ ${d.amount.toLocaleString()}`}
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* SUB-TAB 3: UTILITY LIST */}
+                {activitySubTab === 'UTILITY' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-600">
+                        চলতি মাসের ইউটিলিটি ও ফিক্সড যৌথ খরচের বিভাজন:
+                      </span>
+                      <span className="text-xs font-extrabold text-purple-700 bg-purple-50 px-3 py-1.5 rounded-xl border border-purple-200 font-mono">
+                        মোট: ৳ {utilityList.reduce((sum, u) => sum + (Number(u.amount) || 0), 0).toLocaleString()}
+                      </span>
+                    </div>
+
+                    <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase border-b border-slate-200 text-[11px]">
+                          <tr>
+                            <th className="py-3 px-4 w-44">ক্যাটেগরি ও খাত</th>
+                            <th className="py-3 px-4">বিবরণ</th>
+                            <th className="py-3 px-4 text-right font-black w-36">টাকার পরিমাণ (৳)</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {utilityList.length === 0 ? (
+                            <tr>
+                              <td colSpan={3} className="p-8 text-center text-slate-500 font-medium">
+                                এই মাসে কোনো ইউটিলিটি খরচের রেকর্ড নেই।
                               </td>
                             </tr>
-                          ))
-                        )}
-                      </tbody>
-                      <tfoot className="bg-emerald-50 text-emerald-950 font-black text-xs border-t-2 border-emerald-300">
-                        <tr>
-                          <td colSpan={2} className="py-3 px-4 uppercase">
-                            শুধুমাত্র আপনার মোট জমা ({myDeposits.length} টি)
-                          </td>
-                          <td className="py-3 px-3 text-right font-black text-sm text-emerald-900">
-                            ৳ {myDeposits.reduce((sum, d) => sum + (d.amount || 0), 0).toLocaleString()}
-                          </td>
-                        </tr>
-                      </tfoot>
-                    </table>
+                          ) : (
+                            utilityList.map((u, idx) => {
+                              const meta = (() => {
+                                switch (u.category) {
+                                  case 'KHALA_BILL':
+                                    return { name: 'বাবুর্চি / খালা বিল', icon: '👩‍🍳', badge: 'bg-amber-100 text-amber-800' };
+                                  case 'GAS_BILL':
+                                    return { name: 'গ্যাস সিলিন্ডার / লাইন বিল', icon: '🔥', badge: 'bg-orange-100 text-orange-800' };
+                                  case 'FRIDGE_BILL':
+                                    return { name: 'ফ্রিজ সার্ভিসিং ও ব্যবহার', icon: '❄️', badge: 'bg-cyan-100 text-cyan-800' };
+                                  case 'EXTRA_COST':
+                                    return { name: 'বিবিধ / মেস এক্সট্রা খরচ', icon: '📦', badge: 'bg-indigo-100 text-indigo-800' };
+                                  default:
+                                    return { name: u.category, icon: '⚡', badge: 'bg-slate-100 text-slate-800' };
+                                }
+                              })();
+
+                              return (
+                                <tr
+                                  key={u.id}
+                                  className={`hover:bg-slate-50 transition-colors ${
+                                    idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'
+                                  }`}
+                                >
+                                  <td className="py-3 px-4 font-bold text-slate-800">
+                                    <span className="inline-flex items-center gap-1.5">
+                                      <span>{meta.icon}</span>
+                                      <span>{meta.name}</span>
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-4 font-semibold text-slate-700">
+                                    {u.description || 'মেসের সকল সক্রিয় সদস্যের মাঝে সমানভাবে বিভাজ্য'}
+                                  </td>
+                                  <td className="py-3 px-4 text-right font-black text-purple-900 text-xs sm:text-sm font-mono whitespace-nowrap">
+                                    ৳ {u.amount.toLocaleString()}
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
+                        <tfoot className="bg-purple-50 text-purple-950 font-black text-xs border-t-2 border-purple-200">
+                          <tr>
+                            <td colSpan={2} className="py-3 px-4 uppercase">
+                              সর্বমোট ইউটিলিটি ({utilityList.length} টি খাত)
+                            </td>
+                            <td className="py-3 px-4 text-right font-black text-sm text-purple-900 font-mono whitespace-nowrap">
+                              ৳ {utilityList.reduce((sum, u) => sum + (Number(u.amount) || 0), 0).toLocaleString()}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+
+                {/* SUB-TAB 4: TIMELINE FEED */}
+                {activitySubTab === 'FEED' && (
+                  <div className="space-y-3">
+                    {activities.length === 0 && myDeposits.length === 0 && bazarList.length === 0 ? (
+                      <div className="p-10 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                        <Clock className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                        <p className="text-sm font-medium">{selectedMonth} মাসের কোনো অ্যাক্টিভিটি রেকর্ড নেই।</p>
+                      </div>
+                    ) : (
+                      activities.map((act) => {
+                        const isMyDeposit = act.targetMemberId === user?.id || (user?.memberId && act.targetMemberId === user.memberId);
+                        const isBazar = act.action === 'BAZAR_LOGGED';
+                        const isUtility = act.action === 'UTILITY_LOGGED';
+                        const isMeals = act.action === 'MEALS_UPDATED' || act.action === 'LOCK_AND_SYNC_MEALS';
+
+                        return (
+                          <div
+                            key={act.id}
+                            className={`p-4 rounded-2xl border transition-all flex items-start gap-3.5 ${
+                              isMyDeposit
+                                ? 'bg-emerald-50/70 border-emerald-300 shadow-sm'
+                                : isBazar
+                                ? 'bg-blue-50/40 border-blue-200'
+                                : isUtility
+                                ? 'bg-purple-50/40 border-purple-200'
+                                : 'bg-slate-50 border-slate-200'
+                            }`}
+                          >
+                            <div
+                              className={`p-2.5 rounded-xl flex-shrink-0 mt-0.5 ${
+                                isMyDeposit
+                                  ? 'bg-emerald-600 text-white'
+                                  : isBazar
+                                  ? 'bg-blue-600 text-white'
+                                  : isUtility
+                                  ? 'bg-purple-600 text-white'
+                                  : 'bg-slate-700 text-white'
+                              }`}
+                            >
+                              {isMyDeposit ? (
+                                <DollarSign className="w-4 h-4" />
+                              ) : isBazar ? (
+                                <ShoppingBag className="w-4 h-4" />
+                              ) : isUtility ? (
+                                <Receipt className="w-4 h-4" />
+                              ) : isMeals ? (
+                                <Utensils className="w-4 h-4" />
+                              ) : (
+                                <History className="w-4 h-4" />
+                              )}
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-wrap items-center justify-between gap-1 mb-1">
+                                <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                  {isMyDeposit ? (
+                                    <span className="bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-md">
+                                      💰 আমার জমা এন্ট্রি
+                                    </span>
+                                  ) : isBazar ? (
+                                    <span className="bg-blue-600 text-white text-[10px] font-black px-2 py-0.5 rounded-md">
+                                      🛒 মেসের দৈনিক বাজার
+                                    </span>
+                                  ) : isUtility ? (
+                                    <span className="bg-purple-600 text-white text-[10px] font-black px-2 py-0.5 rounded-md">
+                                      ⚡ ইউটিলিটি বিল
+                                    </span>
+                                  ) : (
+                                    <span className="bg-slate-600 text-white text-[10px] font-black px-2 py-0.5 rounded-md">
+                                      🍽️ মিল এন্ট্রি
+                                    </span>
+                                  )}
+                                  <span className="text-slate-600 font-semibold">{act.userName || 'ম্যানেজার'}</span>
+                                </span>
+                                <span className="text-[11px] text-slate-400 font-medium">
+                                  {new Date(act.timestamp).toLocaleString('bn-BD', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </span>
+                              </div>
+                              <p className="text-xs sm:text-sm font-semibold text-slate-800 leading-snug">
+                                {act.details}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
       </>
     )}
   </div>
