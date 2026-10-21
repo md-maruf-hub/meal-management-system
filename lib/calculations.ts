@@ -57,13 +57,6 @@ export function calculateMonthlyReport(
       return false;
     }
 
-    // If month already has meals recorded from other members, and this member has 0 meals and 0 deposits:
-    // they were not participating in this month (e.g. on full-month leave)
-    const monthHasMeals = meals.some((meal) => meal.yearMonth === yearMonth && meal.mealCount > 0);
-    if (monthHasMeals) {
-      return false;
-    }
-
     return true;
   });
   const activeCount = activeMembers.length || 1;
@@ -79,7 +72,7 @@ export function calculateMonthlyReport(
     (m) => m.yearMonth === yearMonth && activeMemberIdSet.has(m.memberId)
   );
   const totalMeals = roundDecimal(
-    monthMeals.reduce((sum, m) => sum + (m.mealCount || 0), 0),
+    monthMeals.reduce((sum, m) => sum + (Number(m.mealCount) || 0), 0),
     1
   );
 
@@ -88,7 +81,7 @@ export function calculateMonthlyReport(
     (b) => b.yearMonth === yearMonth
   );
   const totalBazar = roundDecimal(
-    monthBazar.reduce((sum, b) => sum + (b.amount || 0), 0),
+    monthBazar.reduce((sum, b) => sum + (Number(b.amount) || 0), 0),
     2
   );
 
@@ -107,14 +100,14 @@ export function calculateMonthlyReport(
     
     const directCost = items
       .filter((item) => item.memberId && isMemberMatch(item.memberId, member))
-      .reduce((sum, item) => sum + (item.amount || 0), 0);
+      .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
     const sharedCost = items
       .filter((item) => !item.memberId)
-      .reduce((sum, item) => sum + (item.amount || 0), 0);
+      .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
     const splitCost = sharedCost > 0 ? sharedCost / activeCount : 0;
-    return roundDecimal(directCost + splitCost, 3);
+    return roundDecimal(directCost + splitCost, 2);
   };
 
   let totalKhala = 0;
@@ -129,11 +122,12 @@ export function calculateMonthlyReport(
   const memberCalculations: MemberCalculation[] = activeMembers.map((member) => {
     const memberMealEntries = monthMeals.filter((m) => isMemberMatch(m.memberId, member));
     const memberMealCount = roundDecimal(
-      memberMealEntries.reduce((sum, m) => sum + (m.mealCount || 0), 0),
+      memberMealEntries.reduce((sum, m) => sum + (Number(m.mealCount) || 0), 0),
       1
     );
 
-    const mealCost = roundDecimal(memberMealCount * millRate, 3);
+    // Use full precision ratio to avoid premature rounding loss across members
+    const mealCost = totalMeals > 0 ? roundDecimal((memberMealCount * totalBazar) / totalMeals, 2) : 0;
 
     const khalaBill = calculateMemberUtilityCost('KHALA_BILL', member);
     const gasBill = calculateMemberUtilityCost('GAS_BILL', member);
@@ -142,7 +136,7 @@ export function calculateMonthlyReport(
 
     const totalCost = roundDecimal(
       mealCost + khalaBill + gasBill + extraCost + fridgeBill,
-      3
+      2
     );
 
     const memberDepositEntries = deposits.filter(
@@ -151,7 +145,7 @@ export function calculateMonthlyReport(
         isMemberMatch(d.memberId, member)
     );
     const depositAmount = roundDecimal(
-      memberDepositEntries.reduce((sum, d) => sum + (d.amount || 0), 0),
+      memberDepositEntries.reduce((sum, d) => sum + (Number(d.amount) || 0), 0),
       2
     );
 
@@ -159,9 +153,9 @@ export function calculateMonthlyReport(
     let refundAmount = 0;
 
     if (depositAmount > totalCost) {
-      refundAmount = roundDecimal(depositAmount - totalCost, 3);
+      refundAmount = roundDecimal(depositAmount - totalCost, 2);
     } else if (totalCost > depositAmount) {
-      dueAmount = roundDecimal(totalCost - depositAmount, 3);
+      dueAmount = roundDecimal(totalCost - depositAmount, 2);
     }
 
     if (dueAmount <= 0.01) dueAmount = 0;
@@ -172,7 +166,7 @@ export function calculateMonthlyReport(
       (s) => isMemberMatch(s.memberId, member) && s.yearMonth === yearMonth
     );
     const settledAmount = roundDecimal(
-      memberSettlements.reduce((sum, s) => sum + (s.amount || 0), 0),
+      memberSettlements.reduce((sum, s) => sum + (Number(s.amount) || 0), 0),
       2
     );
 
@@ -228,8 +222,8 @@ export function calculateMonthlyReport(
     totalCost: roundDecimal(totalCostSum, 2),
     totalDeposits: roundDecimal(totalDepositsSum, 2),
     cashInHand,
-    overallReceive: roundDecimal(overallReceive, 3),
-    overallGive: roundDecimal(overallGive, 3),
+    overallReceive: roundDecimal(overallReceive, 2),
+    overallGive: roundDecimal(overallGive, 2),
     memberCalculations,
   };
 }
