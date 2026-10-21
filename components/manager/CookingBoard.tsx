@@ -12,6 +12,8 @@ import {
   RefreshCw,
   Save,
   Sliders,
+  Plus,
+  Minus,
   FileSpreadsheet,
   ChevronDown,
   ChevronUp,
@@ -57,8 +59,20 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
   const [lWeight, setLWeight] = useState<number>(1.0);
   const [dWeight, setDWeight] = useState<number>(1.0);
 
+  // Configurable Guest Meal Values/Weights
+  const [guestBWeight, setGuestBWeight] = useState<number>(0.5);
+  const [guestLWeight, setGuestLWeight] = useState<number>(1.0);
+  const [guestDWeight, setGuestDWeight] = useState<number>(1.0);
+  const [showCustomGuestWeights, setShowCustomGuestWeights] = useState<boolean>(false);
+
   // Expandable Weights Setting Drawer
   const [isWeightSettingsOpen, setIsWeightSettingsOpen] = useState<boolean>(false);
+
+  // Guest Breakdown Modal State
+  const [guestModalMember, setGuestModalMember] = useState<any | null>(null);
+  const [modalGuestB, setModalGuestB] = useState<number>(0);
+  const [modalGuestL, setModalGuestL] = useState<number>(0);
+  const [modalGuestD, setModalGuestD] = useState<number>(0);
 
   const [loading, setLoading] = useState(true);
   const [processingLock, setProcessingLock] = useState(false);
@@ -93,6 +107,16 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
         setLWeight(lVal);
         setDWeight(dVal);
 
+        const gbVal = typeof resData.gbValue === 'number' ? resData.gbValue : bVal;
+        const glVal = typeof resData.glValue === 'number' ? resData.glValue : lVal;
+        const gdVal = typeof resData.gdValue === 'number' ? resData.gdValue : dVal;
+        setGuestBWeight(gbVal);
+        setGuestLWeight(glVal);
+        setGuestDWeight(gdVal);
+
+        const hasCustom = Boolean(resData.hasCustomGuestWeights) || gbVal !== bVal || glVal !== lVal || gdVal !== dVal;
+        setShowCustomGuestWeights(hasCustom);
+
         setIsAddedToSheet(Boolean(resData.isAddedToSheet));
         setSheetMealCount(Number(resData.sheetTotalMealCount) || 0);
 
@@ -117,9 +141,9 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
           bValue: bWeight,
           lValue: lWeight,
           dValue: dWeight,
-          gbValue: bWeight,
-          glValue: lWeight,
-          gdValue: dWeight,
+          gbValue: showCustomGuestWeights ? guestBWeight : bWeight,
+          glValue: showCustomGuestWeights ? guestLWeight : lWeight,
+          gdValue: showCustomGuestWeights ? guestDWeight : dWeight,
         }),
       });
 
@@ -200,9 +224,9 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
           bValue: bWeight,
           lValue: lWeight,
           dValue: dWeight,
-          gbValue: bWeight,
-          glValue: lWeight,
-          gdValue: dWeight,
+          gbValue: showCustomGuestWeights ? guestBWeight : bWeight,
+          glValue: showCustomGuestWeights ? guestLWeight : lWeight,
+          gdValue: showCustomGuestWeights ? guestDWeight : dWeight,
         }),
       });
 
@@ -240,11 +264,54 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
     setDirtyMap((prev) => ({ ...prev, [memberId]: true }));
   };
 
+  const openGuestModal = (m: any) => {
+    setGuestModalMember(m);
+    setModalGuestB(Number(m.guestBreakfast) || 0);
+    setModalGuestL(Number(m.guestLunch) || 0);
+    setModalGuestD(Number(m.guestDinner) || 0);
+  };
+
+  const handleSaveGuestModal = () => {
+    if (!guestModalMember) return;
+    const targetId = guestModalMember.memberId;
+    const totalG = modalGuestB + modalGuestL + modalGuestD;
+
+    setMembersState((prev) =>
+      prev.map((m) => {
+        if (m.memberId !== targetId) return m;
+        return {
+          ...m,
+          guestBreakfast: modalGuestB,
+          guestLunch: modalGuestL,
+          guestDinner: modalGuestD,
+          guestCount: totalG,
+        };
+      })
+    );
+    setDirtyMap((prev) => ({ ...prev, [targetId]: true }));
+    setGuestModalMember(null);
+  };
+
   const calculateMemberMealTotal = (m: any) => {
+    const gb = Number(m.guestBreakfast) || 0;
+    const gl = Number(m.guestLunch) || 0;
+    const gd = Number(m.guestDinner) || 0;
+    const hasDetailedGuests = m.guestBreakfast !== undefined || m.guestLunch !== undefined || m.guestDinner !== undefined;
+
+    const effGuestBWeight = showCustomGuestWeights ? guestBWeight : bWeight;
+    const effGuestLWeight = showCustomGuestWeights ? guestLWeight : lWeight;
+    const effGuestDWeight = showCustomGuestWeights ? guestDWeight : dWeight;
+
+    const guestMealPoints = hasDetailedGuests
+      ? (gb * effGuestBWeight + gl * effGuestLWeight + gd * effGuestDWeight)
+      : (Number(m.guestCount) || 0) * effGuestLWeight;
+
     const total =
       (m.breakfast ? bWeight : 0) +
       (m.lunch ? lWeight : 0) +
-      (m.dinner ? dWeight : 0);
+      (m.dinner ? dWeight : 0) +
+      guestMealPoints;
+
     return Math.round(total * 10) / 10;
   };
 
@@ -267,17 +334,17 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
           breakfast: memberObj.breakfast,
           lunch: memberObj.lunch,
           dinner: memberObj.dinner,
-          guestBreakfast: 0,
-          guestLunch: 0,
-          guestDinner: 0,
-          guestCount: 0,
+          guestBreakfast: Number(memberObj.guestBreakfast) || 0,
+          guestLunch: Number(memberObj.guestLunch) || 0,
+          guestDinner: Number(memberObj.guestDinner) || 0,
+          guestCount: memberObj.guestCount,
           note: memberObj.note,
           bValue: bWeight,
           lValue: lWeight,
           dValue: dWeight,
-          gbValue: bWeight,
-          glValue: lWeight,
-          gdValue: dWeight,
+          gbValue: showCustomGuestWeights ? guestBWeight : bWeight,
+          glValue: showCustomGuestWeights ? guestLWeight : lWeight,
+          gdValue: showCustomGuestWeights ? guestDWeight : dWeight,
         }),
       });
 
@@ -321,10 +388,10 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
         breakfast: m.breakfast,
         lunch: m.lunch,
         dinner: m.dinner,
-        guestBreakfast: 0,
-        guestLunch: 0,
-        guestDinner: 0,
-        guestCount: 0,
+        guestBreakfast: Number(m.guestBreakfast) || 0,
+        guestLunch: Number(m.guestLunch) || 0,
+        guestDinner: Number(m.guestDinner) || 0,
+        guestCount: m.guestCount,
         note: m.note,
       }));
 
@@ -339,9 +406,9 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
           bValue: bWeight,
           lValue: lWeight,
           dValue: dWeight,
-          gbValue: bWeight,
-          glValue: lWeight,
-          gdValue: dWeight,
+          gbValue: showCustomGuestWeights ? guestBWeight : bWeight,
+          glValue: showCustomGuestWeights ? guestLWeight : lWeight,
+          gdValue: showCustomGuestWeights ? guestDWeight : dWeight,
         }),
       });
 
@@ -376,10 +443,10 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
       breakfast: m.breakfast,
       lunch: m.lunch,
       dinner: m.dinner,
-      guestBreakfast: 0,
-      guestLunch: 0,
-      guestDinner: 0,
-      guestCount: 0,
+      guestBreakfast: Number(m.guestBreakfast) || 0,
+      guestLunch: Number(m.guestLunch) || 0,
+      guestDinner: Number(m.guestDinner) || 0,
+      guestCount: m.guestCount,
       note: m.note,
     }));
 
@@ -394,17 +461,20 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
           bValue: bWeight,
           lValue: lWeight,
           dValue: dWeight,
-          gbValue: bWeight,
-          glValue: lWeight,
-          gdValue: dWeight,
+          gbValue: showCustomGuestWeights ? guestBWeight : bWeight,
+          glValue: showCustomGuestWeights ? guestLWeight : lWeight,
+          gdValue: showCustomGuestWeights ? guestDWeight : dWeight,
         }),
       });
 
       const resData = await res.json();
       if (res.ok && resData.success) {
+        const customMsg = showCustomGuestWeights
+          ? `✅ মিলের নতুন মান সংরক্ষিত হয়েছে! (সদস্য: B=${bWeight}, L=${lWeight}, D=${dWeight} | গেস্ট: B=${guestBWeight}, L=${guestLWeight}, D=${guestDWeight})`
+          : `✅ সকাল (${bWeight}), দুপুর (${lWeight}), ও রাত (${dWeight})-এর নতুন মান সব মেম্বারদের জন্য সফলভাবে সংরক্ষিত হয়েছে!`;
         setToastMessage({
           type: 'success',
-          text: `✅ সকাল (${bWeight}), দুপুর (${lWeight}), ও রাত (${dWeight})-এর নতুন মান সব মেম্বারদের জন্য সফলভাবে সংরক্ষিত হয়েছে!`,
+          text: customMsg,
         });
         setDirtyMap({});
         setIsWeightSettingsOpen(false);
@@ -436,9 +506,9 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
           bValue: bWeight,
           lValue: lWeight,
           dValue: dWeight,
-          gbValue: bWeight,
-          glValue: lWeight,
-          gdValue: dWeight,
+          gbValue: showCustomGuestWeights ? guestBWeight : bWeight,
+          glValue: showCustomGuestWeights ? guestLWeight : lWeight,
+          gdValue: showCustomGuestWeights ? guestDWeight : dWeight,
         }),
       });
 
@@ -469,14 +539,22 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
   const isAllLocked = Boolean(data?.isLocked || (breakfastLocked && lunchLocked && dinnerLocked));
   const isPartiallyLocked = (breakfastLocked || lunchLocked || dinnerLocked) && !isAllLocked;
 
-  // Dynamic live summary based on membersState
-  const liveTotalBreakfast = membersState.filter((m) => m.breakfast).length;
-  const liveTotalLunch = membersState.filter((m) => m.lunch).length;
-  const liveTotalDinner = membersState.filter((m) => m.dinner).length;
+  // Dynamic live summary based on membersState (Regular + Guests combined into each meal session)
+  const liveBreakfastRegular = membersState.filter((m) => m.breakfast).length;
+  const liveBreakfastGuests = membersState.reduce((sum, m) => sum + (Number(m.guestBreakfast) || 0), 0);
+  const liveTotalBreakfast = liveBreakfastRegular + liveBreakfastGuests;
+
+  const liveLunchRegular = membersState.filter((m) => m.lunch).length;
+  const liveLunchGuests = membersState.reduce((sum, m) => sum + (Number(m.guestLunch) || 0), 0);
+  const liveTotalLunch = liveLunchRegular + liveLunchGuests;
+
+  const liveDinnerRegular = membersState.filter((m) => m.dinner).length;
+  const liveDinnerGuests = membersState.reduce((sum, m) => sum + (Number(m.guestDinner) || 0), 0);
+  const liveTotalDinner = liveDinnerRegular + liveDinnerGuests;
 
   const dirtyCount = Object.keys(dirtyMap).length;
 
-  const eatingCount = membersState.filter((m) => m.breakfast || m.lunch || m.dinner).length;
+  const eatingCount = membersState.filter((m) => m.breakfast || m.lunch || m.dinner || (Number(m.guestCount) || 0) > 0).length;
   const offCount = membersState.length - eatingCount;
 
   const filteredMembers = membersState.filter((m) => {
@@ -488,7 +566,7 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
 
     if (!matchesSearch) return false;
 
-    const isEatingAny = m.breakfast || m.lunch || m.dinner;
+    const isEatingAny = m.breakfast || m.lunch || m.dinner || (Number(m.guestCount) || 0) > 0;
     if (filterType === 'EATING') return isEatingAny;
     if (filterType === 'OFF') return !isEatingAny;
 
@@ -512,7 +590,7 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
               কোন বেলায় কত মিল রান্না হবে?
             </h2>
             <p className="text-xs sm:text-sm text-slate-300 max-w-xl">
-              তারিখ নির্বাচন করে সকাল, দুপুর ও রাতের সঠিক মিল হিসাব দেখুন, মেম্বারদের মিল নিয়ন্ত্রণ করুন এবং রান্নার পূর্বে সেশন লক করুন।
+              তারিখ নির্বাচন করে সকাল, দুপুর ও রাতের সঠিক মিল হিসাব দেখুন (রেগুলার ও মেহমান একসাথে), এবং রান্নার পূর্বে সেশন লক করুন।
             </p>
           </div>
 
@@ -712,7 +790,7 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
         </div>
       </div>
 
-      {/* 3. The 3 Clean Meal KPI Cards (With Embedded Lock Toggles) */}
+      {/* 3. The 3 Clean Meal KPI Cards (3 Sessions: Breakfast, Lunch, Dinner - Guests Counted Together) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Breakfast Card */}
         <div className={`p-5 rounded-3xl border shadow-sm transition-all flex flex-col justify-between space-y-4 ${
@@ -745,7 +823,12 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
             </div>
 
             <p className="text-xs text-slate-500 mt-1">
-              মোট মেম্বার: <span className="font-bold text-slate-700">{liveTotalBreakfast} জন</span>
+              রেগুলার: <span className="font-bold text-slate-700">{liveBreakfastRegular}</span>
+              {liveBreakfastGuests > 0 ? (
+                <> + গেস্ট: <span className="font-bold text-purple-700">{liveBreakfastGuests}</span></>
+              ) : (
+                ' (গেস্ট ০)'
+              )}
             </p>
           </div>
 
@@ -796,7 +879,12 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
             </div>
 
             <p className="text-xs text-slate-500 mt-1">
-              মোট মেম্বার: <span className="font-bold text-slate-700">{liveTotalLunch} জন</span>
+              রেগুলার: <span className="font-bold text-slate-700">{liveLunchRegular}</span>
+              {liveLunchGuests > 0 ? (
+                <> + গেস্ট: <span className="font-bold text-purple-700">{liveLunchGuests}</span></>
+              ) : (
+                ' (গেস্ট ০)'
+              )}
             </p>
           </div>
 
@@ -847,7 +935,12 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
             </div>
 
             <p className="text-xs text-slate-500 mt-1">
-              মোট মেম্বার: <span className="font-bold text-slate-700">{liveTotalDinner} জন</span>
+              রেগুলার: <span className="font-bold text-slate-700">{liveDinnerRegular}</span>
+              {liveDinnerGuests > 0 ? (
+                <> + গেস্ট: <span className="font-bold text-purple-700">{liveDinnerGuests}</span></>
+              ) : (
+                ' (গেস্ট ০)'
+              )}
             </p>
           </div>
 
@@ -919,7 +1012,11 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
                     step="0.1"
                     min="0"
                     value={bWeight}
-                    onChange={(e) => setBWeight(Math.max(0, parseFloat(e.target.value) || 0))}
+                    onChange={(e) => {
+                      const val = Math.max(0, parseFloat(e.target.value) || 0);
+                      setBWeight(val);
+                      if (!showCustomGuestWeights) setGuestBWeight(val);
+                    }}
                     className="w-16 text-center py-1 bg-white border border-amber-300 rounded-xl font-black text-amber-900 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none shadow-inner"
                   />
                 </div>
@@ -935,7 +1032,11 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
                     step="0.1"
                     min="0"
                     value={lWeight}
-                    onChange={(e) => setLWeight(Math.max(0, parseFloat(e.target.value) || 0))}
+                    onChange={(e) => {
+                      const val = Math.max(0, parseFloat(e.target.value) || 0);
+                      setLWeight(val);
+                      if (!showCustomGuestWeights) setGuestLWeight(val);
+                    }}
                     className="w-16 text-center py-1 bg-white border border-blue-300 rounded-xl font-black text-blue-900 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none shadow-inner"
                   />
                 </div>
@@ -951,7 +1052,11 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
                     step="0.1"
                     min="0"
                     value={dWeight}
-                    onChange={(e) => setDWeight(Math.max(0, parseFloat(e.target.value) || 0))}
+                    onChange={(e) => {
+                      const val = Math.max(0, parseFloat(e.target.value) || 0);
+                      setDWeight(val);
+                      if (!showCustomGuestWeights) setGuestDWeight(val);
+                    }}
                     className="w-16 text-center py-1 bg-white border border-purple-300 rounded-xl font-black text-purple-900 text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none shadow-inner"
                   />
                 </div>
@@ -987,7 +1092,7 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
               </span>
             </div>
             <p className="text-xs text-slate-500">
-              যেকোনো বেলার মিল এক ক্লিকে অন/অফ করুন এবং পরিবর্তন শেষে সেভ করুন।
+              যেকোনো বেলার মিল এক ক্লিকে অন/অফ করুন বা মেহমান যোগ করুন এবং পরিবর্তন শেষে সেভ করুন।
             </p>
           </div>
 
@@ -1057,25 +1162,26 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
               <tr>
                 <th className="py-3 px-4">রুম নং</th>
                 <th className="py-3 px-4">সদস্যের নাম ও বিবরণ</th>
-                <th className="py-3 px-4 text-center">
+                <th className="py-3 px-3 text-center">
                   <div className="flex flex-col items-center">
                     <span className="font-extrabold text-slate-800 text-xs">🍳 সকাল</span>
                     <span className="text-[10px] text-amber-700 font-semibold">{bWeight} pt</span>
                   </div>
                 </th>
-                <th className="py-3 px-4 text-center">
+                <th className="py-3 px-3 text-center">
                   <div className="flex flex-col items-center">
                     <span className="font-extrabold text-slate-800 text-xs">🍛 দুপুর</span>
                     <span className="text-[10px] text-blue-700 font-semibold">{lWeight} pt</span>
                   </div>
                 </th>
-                <th className="py-3 px-4 text-center">
+                <th className="py-3 px-3 text-center">
                   <div className="flex flex-col items-center">
                     <span className="font-extrabold text-slate-800 text-xs">🍲 রাত</span>
                     <span className="text-[10px] text-purple-700 font-semibold">{dWeight} pt</span>
                   </div>
                 </th>
-                <th className="py-3 px-4 text-center">📊 মোট মিল</th>
+                <th className="py-3 px-3 text-center">👥 মেহমান</th>
+                <th className="py-3 px-3 text-center">📊 মোট মিল</th>
                 <th className="py-3 px-4">বার্তা / নোট</th>
                 <th className="py-3 px-4 text-center">অ্যাকশন</th>
               </tr>
@@ -1083,7 +1189,7 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-500">
+                  <td colSpan={9} className="py-12 text-center text-slate-500">
                     <div className="flex flex-col items-center justify-center space-y-2">
                       <RefreshCw className="w-6 h-6 animate-spin text-emerald-600" />
                       <span className="text-xs font-bold">রান্নার ডেটা লোড হচ্ছে...</span>
@@ -1092,7 +1198,7 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
                 </tr>
               ) : filteredMembers.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-10 text-center text-slate-500">
+                  <td colSpan={9} className="py-10 text-center text-slate-500">
                     <div className="max-w-xs mx-auto space-y-1">
                       <p className="font-bold text-slate-700">কোনো মেম্বার পাওয়া যায়নি।</p>
                       <p className="text-xs text-slate-400">ফিল্টার বা সার্চ কিওয়ার্ড পরিবর্তন করে দেখুন।</p>
@@ -1101,9 +1207,10 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
                 </tr>
               ) : (
                 filteredMembers.map((m) => {
-                  const isOffAll = !m.breakfast && !m.lunch && !m.dinner;
+                  const isOffAll = !m.breakfast && !m.lunch && !m.dinner && (Number(m.guestCount) || 0) === 0;
                   const isDirty = Boolean(dirtyMap[m.memberId]);
                   const rowMealTotal = calculateMemberMealTotal(m);
+                  const totalGuests = (Number(m.guestBreakfast) || 0) + (Number(m.guestLunch) || 0) + (Number(m.guestDinner) || 0) || (Number(m.guestCount) || 0);
 
                   return (
                     <tr
@@ -1141,59 +1248,112 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
                       </td>
 
                       {/* Breakfast Toggle */}
-                      <td className="py-3.5 px-4 text-center">
-                        <button
-                          type="button"
-                          onClick={() => handleToggleMeal(m.memberId, 'breakfast')}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shadow-xs flex items-center justify-center space-x-1 min-w-[76px] mx-auto ${
-                            m.breakfast
-                              ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20'
-                              : 'bg-slate-100 text-slate-400 hover:bg-slate-200 border border-slate-200'
-                          }`}
-                          title="সকালের মিল অন/অফ করতে ক্লিক করুন"
-                        >
-                          <span>{m.breakfast ? '✓' : '✕'}</span>
-                          <span>{m.breakfast ? `${bWeight}` : 'অফ'}</span>
-                        </button>
+                      <td className="py-3.5 px-3 text-center">
+                        <div className="flex flex-col items-center justify-center space-y-1">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleMeal(m.memberId, 'breakfast')}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shadow-xs flex items-center justify-center space-x-1 min-w-[72px] mx-auto ${
+                              m.breakfast
+                                ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20'
+                                : 'bg-slate-100 text-slate-400 hover:bg-slate-200 border border-slate-200'
+                            }`}
+                            title="সকালের মিল অন/অফ করতে ক্লিক করুন"
+                          >
+                            <span>{m.breakfast ? '✓' : '✕'}</span>
+                            <span>{m.breakfast ? `${bWeight}` : 'অফ'}</span>
+                          </button>
+                          {Number(m.guestBreakfast) > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => openGuestModal(m)}
+                              className="text-[10px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 px-1.5 py-0.5 rounded-md border border-amber-200 transition-colors"
+                              title={`সকালে ${m.guestBreakfast} গেস্ট`}
+                            >
+                              +{m.guestBreakfast} গেস্ট
+                            </button>
+                          )}
+                        </div>
                       </td>
 
                       {/* Lunch Toggle */}
-                      <td className="py-3.5 px-4 text-center">
-                        <button
-                          type="button"
-                          onClick={() => handleToggleMeal(m.memberId, 'lunch')}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shadow-xs flex items-center justify-center space-x-1 min-w-[76px] mx-auto ${
-                            m.lunch
-                              ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20'
-                              : 'bg-slate-100 text-slate-400 hover:bg-slate-200 border border-slate-200'
-                          }`}
-                          title="দুপুরের মিল অন/অফ করতে ক্লিক করুন"
-                        >
-                          <span>{m.lunch ? '✓' : '✕'}</span>
-                          <span>{m.lunch ? `${lWeight}` : 'অফ'}</span>
-                        </button>
+                      <td className="py-3.5 px-3 text-center">
+                        <div className="flex flex-col items-center justify-center space-y-1">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleMeal(m.memberId, 'lunch')}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shadow-xs flex items-center justify-center space-x-1 min-w-[72px] mx-auto ${
+                              m.lunch
+                                ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20'
+                                : 'bg-slate-100 text-slate-400 hover:bg-slate-200 border border-slate-200'
+                            }`}
+                            title="দুপুরের মিল অন/অফ করতে ক্লিক করুন"
+                          >
+                            <span>{m.lunch ? '✓' : '✕'}</span>
+                            <span>{m.lunch ? `${lWeight}` : 'অফ'}</span>
+                          </button>
+                          {Number(m.guestLunch) > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => openGuestModal(m)}
+                              className="text-[10px] font-bold text-blue-800 bg-blue-50 hover:bg-blue-100 px-1.5 py-0.5 rounded-md border border-blue-200 transition-colors"
+                              title={`দুপুরে ${m.guestLunch} গেস্ট`}
+                            >
+                              +{m.guestLunch} গেস্ট
+                            </button>
+                          )}
+                        </div>
                       </td>
 
                       {/* Dinner Toggle */}
-                      <td className="py-3.5 px-4 text-center">
+                      <td className="py-3.5 px-3 text-center">
+                        <div className="flex flex-col items-center justify-center space-y-1">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleMeal(m.memberId, 'dinner')}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shadow-xs flex items-center justify-center space-x-1 min-w-[72px] mx-auto ${
+                              m.dinner
+                                ? 'bg-purple-600 hover:bg-purple-700 text-white shadow-purple-500/20'
+                                : 'bg-slate-100 text-slate-400 hover:bg-slate-200 border border-slate-200'
+                            }`}
+                            title="রাতের মিল অন/অফ করতে ক্লিক করুন"
+                          >
+                            <span>{m.dinner ? '✓' : '✕'}</span>
+                            <span>{m.dinner ? `${dWeight}` : 'অফ'}</span>
+                          </button>
+                          {Number(m.guestDinner) > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => openGuestModal(m)}
+                              className="text-[10px] font-bold text-purple-800 bg-purple-50 hover:bg-purple-100 px-1.5 py-0.5 rounded-md border border-purple-200 transition-colors"
+                              title={`রাতে ${m.guestDinner} গেস্ট`}
+                            >
+                              +{m.guestDinner} গেস্ট
+                            </button>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Guest Button / Trigger */}
+                      <td className="py-3.5 px-3 text-center">
                         <button
                           type="button"
-                          onClick={() => handleToggleMeal(m.memberId, 'dinner')}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shadow-xs flex items-center justify-center space-x-1 min-w-[76px] mx-auto ${
-                            m.dinner
-                              ? 'bg-purple-600 hover:bg-purple-700 text-white shadow-purple-500/20'
-                              : 'bg-slate-100 text-slate-400 hover:bg-slate-200 border border-slate-200'
+                          onClick={() => openGuestModal(m)}
+                          className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all border flex items-center justify-center space-x-1 mx-auto ${
+                            totalGuests > 0
+                              ? 'bg-purple-50 hover:bg-purple-100 text-purple-800 border-purple-200 shadow-xs'
+                              : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-200'
                           }`}
-                          title="রাতের মিল অন/অফ করতে ক্লিক করুন"
+                          title="মেহমান মিল যোগ বা পরিবর্তন করুন"
                         >
-                          <span>{m.dinner ? '✓' : '✕'}</span>
-                          <span>{m.dinner ? `${dWeight}` : 'অফ'}</span>
+                          <Users className="w-3 h-3 text-purple-600" />
+                          <span>{totalGuests > 0 ? `${totalGuests} মেহমান` : '+ গেস্ট'}</span>
                         </button>
                       </td>
 
                       {/* Total Points */}
-                      <td className="py-3.5 px-4 text-center">
-                        <span className={`inline-block px-3 py-1 rounded-xl border font-black text-xs ${
+                      <td className="py-3.5 px-3 text-center">
+                        <span className={`inline-block px-2.5 py-1 rounded-xl border font-black text-xs ${
                           rowMealTotal > 0
                             ? 'bg-emerald-50 text-emerald-800 border-emerald-200 shadow-xs'
                             : 'bg-slate-100 text-slate-400 border-slate-200'
@@ -1220,7 +1380,7 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
                             type="button"
                             disabled={savingRowId === m.memberId}
                             onClick={() => handleSaveMember(m.memberId)}
-                            className="px-3.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center space-x-1 mx-auto"
+                            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center space-x-1 mx-auto"
                           >
                             <Save className="w-3 h-3" />
                             <span>{savingRowId === m.memberId ? '...' : 'সেভ'}</span>
@@ -1259,6 +1419,159 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
             <Save className="w-3.5 h-3.5" />
             <span>{savingBulk ? 'সেভ হচ্ছে...' : 'সব সেভ করুন (Save All)'}</span>
           </button>
+        </div>
+      )}
+
+      {/* 7. Guest Breakdown Modal */}
+      {guestModalMember && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 space-y-5 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="font-extrabold text-slate-900 text-base">বেলা অনুযায়ী মেহমান মিল</h3>
+                <p className="text-xs text-slate-500 font-medium">
+                  {guestModalMember.name} ({guestModalMember.roomNo ? `রুম ${guestModalMember.roomNo}` : guestModalMember.memberCode})
+                </p>
+              </div>
+              <span className="p-2.5 bg-purple-100 text-purple-700 rounded-2xl">
+                <Users className="w-5 h-5" />
+              </span>
+            </div>
+
+            <div className="space-y-3.5">
+              {/* Breakfast Guest */}
+              <div className="flex items-center justify-between p-3.5 bg-amber-50/60 rounded-2xl border border-amber-200">
+                <div className="flex items-center space-x-2.5">
+                  <span className="text-xl">🍳</span>
+                  <div>
+                    <h5 className="font-bold text-xs text-slate-800">সকালের নাস্তায় মেহমান</h5>
+                    <span className="text-[10px] text-slate-500">
+                      {bWeight} pt/জন {modalGuestB > 0 ? `→ ${(modalGuestB * bWeight).toFixed(1)} pt` : ''}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    disabled={modalGuestB <= 0}
+                    onClick={() => setModalGuestB(Math.max(0, modalGuestB - 1))}
+                    className="w-7 h-7 flex items-center justify-center rounded-xl bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-bold transition-colors"
+                  >
+                    <Minus className="w-3.5 h-3.5 text-slate-700" />
+                  </button>
+                  <span className="w-6 text-center font-black text-sm text-slate-900">{modalGuestB}</span>
+                  <button
+                    type="button"
+                    disabled={modalGuestB >= 20}
+                    onClick={() => setModalGuestB(modalGuestB + 1)}
+                    className="w-7 h-7 flex items-center justify-center rounded-xl bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-bold transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-slate-700" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Lunch Guest */}
+              <div className="flex items-center justify-between p-3.5 bg-blue-50/60 rounded-2xl border border-blue-200">
+                <div className="flex items-center space-x-2.5">
+                  <span className="text-xl">🍛</span>
+                  <div>
+                    <h5 className="font-bold text-xs text-slate-800">দুপুরের খাবারে মেহমান</h5>
+                    <span className="text-[10px] text-slate-500">
+                      {lWeight} pt/জন {modalGuestL > 0 ? `→ ${(modalGuestL * lWeight).toFixed(1)} pt` : ''}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    disabled={modalGuestL <= 0}
+                    onClick={() => setModalGuestL(Math.max(0, modalGuestL - 1))}
+                    className="w-7 h-7 flex items-center justify-center rounded-xl bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-bold transition-colors"
+                  >
+                    <Minus className="w-3.5 h-3.5 text-slate-700" />
+                  </button>
+                  <span className="w-6 text-center font-black text-sm text-slate-900">{modalGuestL}</span>
+                  <button
+                    type="button"
+                    disabled={modalGuestL >= 20}
+                    onClick={() => setModalGuestL(modalGuestL + 1)}
+                    className="w-7 h-7 flex items-center justify-center rounded-xl bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-bold transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-slate-700" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Dinner Guest */}
+              <div className="flex items-center justify-between p-3.5 bg-purple-50/60 rounded-2xl border border-purple-200">
+                <div className="flex items-center space-x-2.5">
+                  <span className="text-xl">🍲</span>
+                  <div>
+                    <h5 className="font-bold text-xs text-slate-800">রাতের খাবারে মেহমান</h5>
+                    <span className="text-[10px] text-slate-500">
+                      {dWeight} pt/জন {modalGuestD > 0 ? `→ ${(modalGuestD * dWeight).toFixed(1)} pt` : ''}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    disabled={modalGuestD <= 0}
+                    onClick={() => setModalGuestD(Math.max(0, modalGuestD - 1))}
+                    className="w-7 h-7 flex items-center justify-center rounded-xl bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-bold transition-colors"
+                  >
+                    <Minus className="w-3.5 h-3.5 text-slate-700" />
+                  </button>
+                  <span className="w-6 text-center font-black text-sm text-slate-900">{modalGuestD}</span>
+                  <button
+                    type="button"
+                    disabled={modalGuestD >= 20}
+                    onClick={() => setModalGuestD(modalGuestD + 1)}
+                    className="w-7 h-7 flex items-center justify-center rounded-xl bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 font-bold transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-slate-700" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Total Guest Summary */}
+            <div className="p-3.5 bg-purple-50/70 rounded-2xl border border-purple-200 flex items-center justify-between text-xs font-bold text-slate-800">
+              <div>
+                <span>মোট মেহমান: </span>
+                <span className="text-purple-700 text-sm font-black">{modalGuestB + modalGuestL + modalGuestD} জন</span>
+              </div>
+              <div>
+                <span className="text-slate-500">পয়েন্ট: </span>
+                <span className="text-emerald-700 text-sm font-black">
+                  {(
+                    modalGuestB * bWeight +
+                    modalGuestL * lWeight +
+                    modalGuestD * dWeight
+                  ).toFixed(1)} pt
+                </span>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end space-x-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setGuestModalMember(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors"
+              >
+                বাতিল
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveGuestModal}
+                className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-md transition-colors"
+              >
+                প্রয়োগ করুন (Apply)
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
