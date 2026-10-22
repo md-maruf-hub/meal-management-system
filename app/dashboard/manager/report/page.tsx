@@ -28,6 +28,7 @@ import {
   Sliders,
   ChevronRight,
   FileSpreadsheet,
+  StickyNote,
 } from 'lucide-react';
 
 export default function ManagerTotalReportPage() {
@@ -363,6 +364,13 @@ export default function ManagerTotalReportPage() {
           >
             <Receipt className="w-3.5 h-3.5 text-purple-600" />
             <span>ইউটিলিটি বিল</span>
+          </Link>
+          <Link
+            href="/dashboard/manager/store"
+            className="flex items-center space-x-1 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold rounded-xl border border-amber-200 transition-colors"
+          >
+            <StickyNote className="w-3.5 h-3.5 text-amber-600" />
+            <span>📦 স্টোর ও নোটবুক</span>
           </Link>
         </div>
       </div>

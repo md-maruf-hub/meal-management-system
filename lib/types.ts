@@ -199,3 +199,14 @@ export interface AuthSession {
   };
   token: string;
 }
+
+export interface ManagerNote {
+  id: string;
+  title?: string;
+  content: string;
+  isPinned?: boolean;
+  color?: 'yellow' | 'blue' | 'green' | 'purple' | 'slate';
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string;
+}
