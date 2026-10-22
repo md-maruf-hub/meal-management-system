@@ -205,6 +205,18 @@ export default function Sidebar({ role, isMobileOpen = false, onCloseMobile }: S
                   <Receipt className="w-4 h-4" />
                   <span>ইউটিলিটি ও অন্যান্য বিল</span>
                 </Link>
+                <Link
+                  href={`/dashboard/manager/store?month=${selectedMonth}`}
+                  onClick={handleManagerNavClick}
+                  className={`flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
+                    isLinkActive('/dashboard/manager/store')
+                      ? 'bg-emerald-600 text-white shadow-md'
+                      : 'hover:bg-slate-800 text-slate-300'
+                  }`}
+                >
+                  <StickyNote className="w-4 h-4 text-emerald-400" />
+                  <span>📝 মেস স্টোর নোটবুক</span>
+                </Link>
               </>
             ) : (
               /* Month is locked: ONLY show Settlements & Deposits page */
@@ -221,18 +233,6 @@ export default function Sidebar({ role, isMobileOpen = false, onCloseMobile }: S
                 <span>⚖️ সেটেলমেন্ট ও ডিপোজিট</span>
               </Link>
             )}
-            <Link
-              href={`/dashboard/manager/store?month=${selectedMonth}`}
-              onClick={handleManagerNavClick}
-              className={`flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
-                isLinkActive('/dashboard/manager/store')
-                  ? 'bg-emerald-600 text-white shadow-md'
-                  : 'hover:bg-slate-800 text-slate-300'
-              }`}
-            >
-              <StickyNote className="w-4 h-4 text-amber-400" />
-              <span>📦 মেস স্টোর ও নোটবুক</span>
-            </Link>
           </nav>
         </div>
       )}
@@ -304,18 +304,6 @@ export default function Sidebar({ role, isMobileOpen = false, onCloseMobile }: S
             >
               <Database className="w-4 h-4" />
               <span>ডাটাবেজ কানেকশন</span>
-            </Link>
-            <Link
-              href={`/dashboard/manager/store?month=${selectedMonth}`}
-              onClick={handleManagerNavClick}
-              className={`flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
-                isLinkActive('/dashboard/manager/store')
-                  ? 'bg-emerald-600 text-white shadow-md'
-                  : 'hover:bg-slate-800 text-slate-300'
-              }`}
-            >
-              <StickyNote className="w-4 h-4 text-amber-400" />
-              <span>📦 মেস স্টোর ও নোটবুক</span>
             </Link>
           </nav>
         </div>

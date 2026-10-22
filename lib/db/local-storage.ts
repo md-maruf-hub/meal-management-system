@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { Member, MealEntry, BazarEntry, ExpenseItem, Deposit, MonthLock, SettlementEntry, SecurityToken, AuditLog, MealRequest, DailyMealLock, ManagerNote } from '../types';
+import { Member, MealEntry, BazarEntry, ExpenseItem, Deposit, MonthLock, SettlementEntry, SecurityToken, AuditLog, MealRequest, DailyMealLock, ManagerNote, StoreNote } from '../types';
 
 const DB_FILE = process.env.VERCEL
   ? path.join('/tmp', 'database.json')
@@ -19,6 +19,7 @@ export interface DatabaseSchema {
   mealRequests?: MealRequest[];
   dailyMealLocks?: DailyMealLock[];
   managerNotes?: ManagerNote[];
+  storeNote?: StoreNote;
   config?: {
     gasUrl?: string;
     gasApiKey?: string;

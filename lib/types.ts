@@ -200,6 +200,12 @@ export interface AuthSession {
   token: string;
 }
 
+export interface StoreNote {
+  content: string;
+  updatedAt: string;
+  updatedBy?: string;
+}
+
 export interface ManagerNote {
   id: string;
   title?: string;
