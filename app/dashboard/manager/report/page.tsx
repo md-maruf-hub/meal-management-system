@@ -336,36 +336,8 @@ export default function ManagerTotalReportPage() {
         </div>
 
         {/* Quick Operations Links */}
-        <div className="flex flex-wrap items-center gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
-          <Link
-            href="/dashboard/manager/meals"
-            className="flex items-center space-x-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors"
-          >
-            <Utensils className="w-3.5 h-3.5 text-emerald-600" />
-            <span>মিল বোর্ড</span>
-          </Link>
-          <Link
-            href="/dashboard/manager/bazar"
-            className="flex items-center space-x-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors"
-          >
-            <ShoppingBag className="w-3.5 h-3.5 text-blue-600" />
-            <span>বাজার এন্ট্রি</span>
-          </Link>
-          <Link
-            href="/dashboard/manager/deposits"
-            className="flex items-center space-x-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors"
-          >
-            <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
-            <span>জমা গ্রহণ</span>
-          </Link>
-          <Link
-            href="/dashboard/manager/utilities"
-            className="flex items-center space-x-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors"
-          >
-            <Receipt className="w-3.5 h-3.5 text-purple-600" />
-            <span>ইউটিলিটি বিল</span>
-          </Link>
-          {!isMonthClosed && effectiveRole === 'MANAGER' && (
+        {!isMonthClosed && effectiveRole === 'MANAGER' && (
+          <div className="flex items-center pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
             <Link
               href={`/dashboard/manager/store?month=${selectedMonth}`}
               className="flex items-center space-x-1 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold rounded-xl border border-amber-200 transition-colors"
@@ -373,8 +345,8 @@ export default function ManagerTotalReportPage() {
               <StickyNote className="w-3.5 h-3.5 text-amber-600" />
               <span>📝 মেস নোটবুক</span>
             </Link>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {error && (

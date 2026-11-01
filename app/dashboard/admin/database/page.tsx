@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Database, CheckCircle, AlertCircle, RefreshCw, Send, ShieldCheck, Link2, Lock, Unlock, Eye, EyeOff, KeyRound, Download, Sparkles } from 'lucide-react';
+import { Database, CheckCircle, AlertCircle, RefreshCw, Send, ShieldCheck, Link2, Lock, Unlock, Eye, EyeOff, KeyRound, Download } from 'lucide-react';
 
 export default function AdminDatabasePage() {
   // Master Security PIN / Password State
@@ -18,9 +18,6 @@ export default function AdminDatabasePage() {
   const [saving, setSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [pingResult, setPingResult] = useState<{ success: boolean; duration: number } | null>(null);
-  const [pulling, setPulling] = useState(false);
-  const [pushing, setPushing] = useState(false);
-  const [cleaning, setCleaning] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
@@ -154,74 +151,6 @@ export default function AdminDatabasePage() {
     } catch (err: any) {
       setSaving(false);
       setStatusMessage({ type: 'error', text: err.message || 'সংরক্ষণ ব্যর্থ হয়েছে।' });
-    }
-  };
-
-  const handlePullFromSheets = async () => {
-    setPulling(true);
-    setStatusMessage(null);
-    try {
-      const res = await fetch('/api/admin/database', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'pull' }),
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setStatusMessage({ type: 'success', text: data.message || 'গুগল শিট থেকে ডাটা সফলভাবে রিফ্রেশ করা হয়েছে।' });
-      } else {
-        setStatusMessage({ type: 'error', text: data.error || 'গুগল শিট থেকে ডাটা আনতে সমস্যা হয়েছে।' });
-      }
-    } catch (err: any) {
-      setStatusMessage({ type: 'error', text: err.message || 'ডাটা আনার অনুরোধ ব্যর্থ হয়েছে।' });
-    } finally {
-      setPulling(false);
-    }
-  };
-
-  const handlePushToSheets = async () => {
-    if (!confirm('আপনি কি নিশ্চিত যে বর্তমান সমস্ত ডাটা গুগল শিটে পাঠাতে চান? এটি স্প্রেডশিটের ডাটা হালনাগাদ করবে।')) return;
-    setPushing(true);
-    setStatusMessage(null);
-    try {
-      const res = await fetch('/api/admin/database', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'push' }),
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setStatusMessage({ type: 'success', text: data.message || 'গুগল শিটে ডাটা সফলভাবে পাঠানো হয়েছে।' });
-      } else {
-        setStatusMessage({ type: 'error', text: data.error || 'গুগল শিটে ডাটা পাঠাতে ব্যর্থ হয়েছে।' });
-      }
-    } catch (err: any) {
-      setStatusMessage({ type: 'error', text: err.message || 'ডাটা পাঠানোর অনুরোধ ব্যর্থ হয়েছে।' });
-    } finally {
-      setPushing(false);
-    }
-  };
-
-  const handleCleanVirtualDb = async () => {
-    if (!confirm('আপনি কি নিশ্চিত যে ভার্চুয়াল ডাটাবেজ অপ্টিমাইজ করতে চান? এটি গুগল শিটে সব ডাটা পুশ করে অতীত মাসের রেকর্ডগুলো লোকাল মেমোরি থেকে ক্লিন করবে (রানিং মাস অক্ষত থাকবে)।')) return;
-    setCleaning(true);
-    setStatusMessage(null);
-    try {
-      const res = await fetch('/api/admin/database', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'clean-virtual-db' }),
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setStatusMessage({ type: 'success', text: data.message });
-      } else {
-        setStatusMessage({ type: 'error', text: data.error || 'অপ্টিমাইজেশন ব্যর্থ হয়েছে।' });
-      }
-    } catch (err: any) {
-      setStatusMessage({ type: 'error', text: 'অনুরোধ ব্যর্থ হয়েছে।' });
-    } finally {
-      setCleaning(false);
     }
   };
 
@@ -434,73 +363,25 @@ export default function AdminDatabasePage() {
         </form>
       </div>
 
-      {/* 2. Essential Option: Pull and Push Synchronization */}
+      {/* 2. Offline Database Backup */}
       <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
         <div>
-          <h3 className="text-base font-bold text-slate-800">মাস্টার ডাটাবেজ সিঙ্ক্রোনাইজেশন (Pull & Push)</h3>
+          <h3 className="text-base font-bold text-slate-800">অফলাইন ডাটাবেজ ব্যাকআপ (JSON)</h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            গুগল শিট থেকে নতুন ডাটা রিফ্রেশ করতে অথবা বর্তমান সমস্ত তথ্য গুগল শিটে হালনাগাদ করতে নিচের বাটনগুলো ব্যবহার করুন।
+            মেসের সমস্ত সদস্য, মিল, বাজার খরচ ও জমা সংক্রান্ত হিসাবের একটি নিরাপদ অফলাইন ব্যাকআপ আপনার ডিভাইসে সংরক্ষণ করে রাখতে পারেন।
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 sm:gap-4 pt-1">
-          <button
-            type="button"
-            onClick={handlePullFromSheets}
-            disabled={pulling || pushing || !gasUrl}
-            className="px-4 sm:px-5 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs rounded-xl flex items-center space-x-2 border border-emerald-300 transition-all shadow-sm disabled:opacity-50"
-          >
-            <RefreshCw className={`w-4 h-4 ${pulling ? 'animate-spin text-emerald-600' : 'text-emerald-700'}`} />
-            <span>{pulling ? 'ডাটা আনা হচ্ছে...' : '🔄 গুগল শিট থেকে ডাটা আনুন (Pull Live Data)'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handlePushToSheets}
-            disabled={pulling || pushing || !gasUrl}
-            className="px-4 sm:px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl flex items-center space-x-2 transition-all shadow-sm disabled:opacity-50"
-          >
-            <Send className={`w-4 h-4 ${pushing ? 'animate-pulse text-emerald-400' : ''}`} />
-            <span>{pushing ? 'ডাটা পাঠানো হচ্ছে...' : '⬆️ সম্পূর্ণ ডাটাবেজ শিটে পাঠান (Push to Sheet)'}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* 3. Essential Option: Virtual DB Optimization & Backup */}
-      <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-        <div>
-          <div className="flex items-center space-x-2">
-            <h3 className="text-base font-bold text-slate-800">ভার্চুয়াল ডাটাবেজ অপ্টিমাইজেশন ও ব্যাকআপ</h3>
-            <span className="text-[11px] font-extrabold px-2 py-0.5 rounded-md bg-blue-100 text-blue-800 border border-blue-200">
-              ⚡ Hot/Cold Storage
-            </span>
-          </div>
-          <p className="text-xs text-slate-500 mt-0.5">
-            লোকাল ভার্চুয়াল ডাটাবেজে সবসময় শুধুমাত্র রানিং মাসের ডাটা রাখা হয়। অতীত মাসগুলো গুগল শিট থেকে অন-ডিমান্ড লোড হয়।
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3 sm:gap-4 pt-1">
-          <button
-            type="button"
-            onClick={handleCleanVirtualDb}
-            disabled={cleaning || !gasUrl}
-            className="px-4 sm:px-5 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold text-xs rounded-xl flex items-center space-x-2 border border-blue-300 transition-all shadow-sm disabled:opacity-50"
-            title="গুগল শিটে ব্যাকআপ রেখে লোকাল মেমোরি হালকা রাখুন"
-          >
-            <Sparkles className={`w-4 h-4 ${cleaning ? 'animate-spin text-blue-600' : 'text-blue-700'}`} />
-            <span>{cleaning ? 'অপ্টিমাইজ হচ্ছে...' : '🧹 অতীত ডাটা ক্লিন করুন (Clean Virtual DB)'}</span>
-          </button>
-
+        <div className="pt-1">
           <button
             type="button"
             onClick={handleDownloadBackup}
             disabled={downloading}
-            className="px-4 sm:px-5 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs rounded-xl flex items-center space-x-2 border border-emerald-300 transition-all shadow-sm disabled:opacity-50"
+            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl flex items-center space-x-2 transition-all shadow-sm disabled:opacity-50 cursor-pointer"
             title="সম্পূর্ণ ডাটাবেজ JSON ফাইলে ডাউনলোড করুন"
           >
-            <Download className={`w-4 h-4 ${downloading ? 'animate-bounce text-emerald-600' : 'text-emerald-700'}`} />
-            <span>{downloading ? 'ডাউনলোড হচ্ছে...' : '💾 সম্পূর্ণ ডাটাবেজ ব্যাকআপ (JSON)'}</span>
+            <Download className={`w-4 h-4 ${downloading ? 'animate-bounce' : ''}`} />
+            <span>{downloading ? 'ডাউনলোড হচ্ছে...' : '💾 সম্পূর্ণ ডাটাবেজ ব্যাকআপ ডাউনলোড করুন (JSON)'}</span>
           </button>
         </div>
       </div>

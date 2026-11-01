@@ -23,14 +23,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
       if (effectiveRole === 'MANAGER') return;
 
-      // If user is a past manager who is trying to access manager operations, auto-switch to their assigned month
-      if (assignedMonths && assignedMonths.length > 0) {
-        setSelectedMonth(assignedMonths[0]);
-        return;
-      }
-
-      // Plain member who never managed any month
-      router.push('/dashboard/member');
+      // If user is not manager for the selected month, auto-redirect to member portal for that month
+      router.push(`/dashboard/member?month=${selectedMonth}`);
       return;
     }
 
@@ -42,7 +36,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       router.push('/dashboard/member');
       return;
     }
-  }, [pathname, effectiveRole, user, isLoading, assignedMonths, setSelectedMonth, router]);
+  }, [pathname, effectiveRole, user, isLoading, selectedMonth, router]);
 
 
 

@@ -56,6 +56,12 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
   const today = getLocalDateStr();
   const tomorrow = addDaysToDateStr(today, 1);
 
+  // Bounds for the selected month
+  const [sYear, sMonth] = (selectedMonth || today.substring(0, 7)).split('-').map(Number);
+  const lastDayOfMonth = new Date(sYear, sMonth, 0).getDate();
+  const minMonthDate = `${selectedMonth}-01`;
+  const maxMonthDate = `${selectedMonth}-${String(lastDayOfMonth).padStart(2, '0')}`;
+
   const [date, setDate] = useState<string>(() => {
     return today.startsWith(selectedMonth) ? today : `${selectedMonth}-01`;
   });
@@ -724,6 +730,8 @@ export default function CookingBoard({ selectedMonth, onSyncComplete }: CookingB
               <input
                 type="date"
                 value={date}
+                min={minMonthDate}
+                max={maxMonthDate}
                 onChange={(e) => {
                   if (e.target.value) setDate(e.target.value);
                 }}
