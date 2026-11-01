@@ -42,11 +42,11 @@ export default function RegisterPage() {
         return;
       }
 
-      setMessage('নিবন্ধন আবেদন সফলভাবে জমা হয়েছে! সুপার অ্যাডমিনের অনুমোদনের অপেক্ষা করুন।');
+      setMessage(data.message || 'নিবন্ধন আবেদন সফলভাবে জমা হয়েছে এবং গুগল শিটে সংরক্ষিত হয়েছে! সুপার অ্যাডমিনের অনুমোদনের অপেক্ষা করুন।');
       setLoading(false);
       setTimeout(() => {
         router.push('/login');
-      }, 2500);
+      }, 3000);
     } catch (err) {
       setError('একটি সমস্যা দেখা দিয়েছে। দয়া করে আবার চেষ্টা করুন।');
       setLoading(false);
@@ -186,9 +186,16 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg shadow-lg transition-colors"
+            className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg shadow-lg transition-colors flex items-center justify-center space-x-2 disabled:opacity-75"
           >
-            {loading ? 'আবেদন জমা হচ্ছে...' : 'নিবন্ধনের আবেদন জমা দিন'}
+            {loading ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span>গুগল শিটে ডাটা সংরক্ষণ হচ্ছে...</span>
+              </>
+            ) : (
+              'নিবন্ধনের আবেদন জমা দিন'
+            )}
           </button>
         </form>
 

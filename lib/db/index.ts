@@ -99,10 +99,23 @@ async function refreshFromGas(): Promise<DatabaseSchema | null> {
     const data = (await fetchGasData('getMillData')) as DatabaseSchema;
     if (data && Array.isArray(data.members) && data.members.length > 0) {
       const currentLocal = cachedDb || readDb();
+
+      // Protect local pending registrations and local members not yet synced to Google Sheets
+      const remoteIdSet = new Set((data.members || []).map((m) => m.id));
+      const remotePhoneSet = new Set((data.members || []).map((m) => m.phone));
+      const preservedLocalMembers = (currentLocal?.members || []).filter((lm) => {
+        return !remoteIdSet.has(lm.id) && !remotePhoneSet.has(lm.phone);
+      });
+
+      const mergedMembers = [...(data.members || []), ...preservedLocalMembers];
+
       const merged: DatabaseSchema = {
         ...data,
+        members: mergedMembers,
         mealRequests: currentLocal?.mealRequests || [],
         dailyMealLocks: currentLocal?.dailyMealLocks || [],
+        managerNotes: currentLocal?.managerNotes || data.managerNotes || [],
+        storeNote: currentLocal?.storeNote || data.storeNote,
         config: currentLocal?.config || data.config,
       };
 
@@ -160,7 +173,10 @@ export async function getDatabase(forceRefresh = false): Promise<DatabaseSchema>
   return localDb;
 }
 
-export async function saveDatabase(data: DatabaseSchema, options: { syncGas?: boolean } = { syncGas: true }): Promise<void> {
+export async function saveDatabase(
+  data: DatabaseSchema,
+  options: { syncGas?: boolean; awaitGas?: boolean } = { syncGas: true }
+): Promise<void> {
   cachedDb = data;
   lastFetchTime = Date.now();
   // Immediately persist to local high-speed disk cache
@@ -169,14 +185,18 @@ export async function saveDatabase(data: DatabaseSchema, options: { syncGas?: bo
   if (options.syncGas !== false) {
     const gasUrl = getGasUrl();
     if (gasUrl) {
-      // Serialize background pushes so updates execute strictly in order
-      pushQueue = pushQueue
-        .then(async () => {
-          await pushToGoogleSheets();
-        })
-        .catch((err) => {
-          console.error('GAS background sync error:', err);
-        });
+      if (options.awaitGas) {
+        await pushToGoogleSheets();
+      } else {
+        // Serialize background pushes so updates execute strictly in order
+        pushQueue = pushQueue
+          .then(async () => {
+            await pushToGoogleSheets();
+          })
+          .catch((err) => {
+            console.error('GAS background sync error:', err);
+          });
+      }
     }
   }
 }
@@ -326,7 +346,12 @@ export async function syncMembersFromGoogleSheet(): Promise<DatabaseSchema> {
   const members = await fetchGasMembers();
   const db = cachedDb || readDb();
   if (members && Array.isArray(members) && members.length > 0) {
-    db.members = members;
+    const remoteIdSet = new Set(members.map((m) => m.id));
+    const remotePhoneSet = new Set(members.map((m) => m.phone));
+    const localPending = (db.members || []).filter(
+      (m) => !remoteIdSet.has(m.id) && !remotePhoneSet.has(m.phone)
+    );
+    db.members = [...members, ...localPending];
     cachedDb = db;
     lastFetchTime = Date.now();
     writeDb(db);

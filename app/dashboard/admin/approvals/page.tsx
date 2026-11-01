@@ -3,22 +3,24 @@
 import React, { useState, useEffect } from 'react';
 import { Member } from '../../../../lib/types';
 import { useDashboard } from '../../../../lib/DashboardContext';
-import { UserCheck, Check, X, ShieldAlert } from 'lucide-react';
+import { UserCheck, Check, X, ShieldAlert, RefreshCw } from 'lucide-react';
 
 export default function ApprovalsPage() {
   const { user } = useDashboard();
   const [pendingMembers, setPendingMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionMessage, setActionMessage] = useState('');
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchPending();
+    fetchPending(true);
   }, []);
 
-  const fetchPending = async () => {
+  const fetchPending = async (fresh = false) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/approvals`);
+      const url = fresh ? '/api/admin/approvals?fresh=1' : '/api/admin/approvals';
+      const res = await fetch(url);
       const data = await res.json();
       setPendingMembers(data.pendingMembers || []);
       setLoading(false);
@@ -29,6 +31,7 @@ export default function ApprovalsPage() {
 
   const handleAction = async (memberId: string, action: 'APPROVE' | 'REJECT') => {
     setActionMessage('');
+    setProcessingId(memberId);
     try {
       const res = await fetch('/api/admin/approvals', {
         method: 'POST',
@@ -41,20 +44,26 @@ export default function ApprovalsPage() {
       });
 
       const data = await res.json();
-      if (res.ok) {
+      if (res.ok && data.success) {
         setActionMessage(
           action === 'APPROVE'
-            ? `সদস্য সফলভাবে অনুমোদিত হয়েছে এবং মেম্বার আইডি প্রদান করা হয়েছে: ${data.member?.memberId}`
+            ? `সদস্য সফলভাবে অনুমোদিত হয়েছে এবং গুগল শিটে আপডেট করা হয়েছে! মেম্বার আইডি: ${data.member?.memberId}`
             : 'সদস্য নিবন্ধনের আবেদন বাতিল করা হয়েছে।'
         );
-        fetchPending();
+        await fetchPending(true);
+      } else {
+        setActionMessage(data.error || 'কার্যক্রম সম্পন্ন করা যায়নি।');
       }
-    } catch (err) {}
+    } catch (err: any) {
+      setActionMessage('সার্ভারে যোগাযোগ করতে ব্যর্থ হয়েছে।');
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   return (
     <div className="space-y-6">
-      <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+      <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center space-x-3">
           <div className="p-2.5 sm:p-3 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100 flex-shrink-0">
             <UserCheck className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -62,10 +71,20 @@ export default function ApprovalsPage() {
           <div>
             <h2 className="text-lg sm:text-xl font-bold text-slate-800">নতুন সদস্য নিবন্ধন অনুমোদন</h2>
             <p className="text-xs text-slate-500">
-              নতুন সদস্যদের অ্যাকাউন্ট যাচাই ও অনুমোদন করুন। অনুমোদন পেলে স্বয়ংক্রিয় ইউনিক মেম্বার আইডি (যেমন MLL-2026-001) তৈরি হবে।
+              নতুন সদস্যদের অ্যাকাউন্ট যাচাই ও অনুমোদন করুন। অনুমোদন পেলে স্বয়ংক্রিয় ইউনিক মেম্বার আইডি (যেমন MLL-2026-001) তৈরি হবে এবং গুগল শিটে যুক্ত হবে।
             </p>
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={() => fetchPending(true)}
+          disabled={loading}
+          className="flex items-center space-x-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer disabled:opacity-50 self-start sm:self-auto"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-emerald-600' : ''}`} />
+          <span>রিফ্রেশ করুন</span>
+        </button>
       </div>
 
       {actionMessage && (
@@ -75,54 +94,80 @@ export default function ApprovalsPage() {
       )}
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-4 sm:p-5 border-b border-slate-200 font-bold text-slate-800 text-sm sm:text-base">
-          অপেক্ষমান সদস্য আবেদন ({pendingMembers.length})
+        <div className="p-4 sm:p-5 border-b border-slate-200 font-bold text-slate-800 text-sm sm:text-base flex items-center justify-between">
+          <span>অপেক্ষমান সদস্য আবেদন ({pendingMembers.length})</span>
+          {loading && (
+            <span className="text-xs text-emerald-600 font-normal flex items-center space-x-1">
+              <RefreshCw className="w-3 h-3 animate-spin" />
+              <span>শিট থেকে সিঙ্ক হচ্ছে...</span>
+            </span>
+          )}
         </div>
 
         <div className="divide-y divide-slate-100 text-sm">
-          {loading ? (
-            <div className="p-8 text-center text-slate-500">অপেক্ষমান আবেদন তালিকা লোড হচ্ছে...</div>
+          {loading && pendingMembers.length === 0 ? (
+            <div className="p-8 text-center text-slate-500 flex items-center justify-center space-x-2">
+              <RefreshCw className="w-4 h-4 animate-spin text-emerald-600" />
+              <span>অপেক্ষমান আবেদন তালিকা লোড হচ্ছে...</span>
+            </div>
           ) : pendingMembers.length === 0 ? (
             <div className="p-8 text-center text-slate-500 flex flex-col items-center space-y-2">
               <ShieldAlert className="w-8 h-8 text-slate-400" />
               <span>বর্তমানে কোনো নতুন নিবন্ধন আবেদন অপেক্ষমান নেই।</span>
             </div>
           ) : (
-            pendingMembers.map((member) => (
-              <div key={member.id} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-bold text-slate-900 text-base">{member.name}</span>
-                    <span className="bg-amber-100 text-amber-800 text-xs font-semibold px-2 py-0.5 rounded">
-                      রুম {member.roomNo}
-                    </span>
+            pendingMembers.map((member) => {
+              const isProcessing = processingId === member.id;
+              return (
+                <div key={member.id} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-bold text-slate-900 text-base">{member.name}</span>
+                      <span className="bg-amber-100 text-amber-800 text-xs font-semibold px-2 py-0.5 rounded">
+                        রুম {member.roomNo}
+                      </span>
+                      <span className="bg-blue-100 text-blue-800 text-[11px] font-bold px-2 py-0.5 rounded">
+                        স্ট্যাটাস: অপেক্ষমান (PENDING)
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      ফোন: <span className="font-semibold text-slate-700">{member.phone}</span> • ইমেইল: {member.email || 'নেই'} • আবেদনের তারিখ: {member.joinDate}
+                    </p>
+                    {member.address && (
+                      <p className="text-xs text-slate-500">ঠিকানা: {member.address}</p>
+                    )}
                   </div>
-                  <p className="text-xs text-slate-500">
-                    ফোন: <span className="font-semibold text-slate-700">{member.phone}</span> • ইমেইল: {member.email || 'নেই'} • আবেদনের তারিখ: {member.joinDate}
-                  </p>
-                  {member.address && (
-                    <p className="text-xs text-slate-500">ঠিকানা: {member.address}</p>
-                  )}
-                </div>
 
-                <div className="flex items-center space-x-2 flex-shrink-0">
-                  <button
-                    onClick={() => handleAction(member.id, 'APPROVE')}
-                    className="flex items-center space-x-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-xl shadow transition-colors"
-                  >
-                    <Check className="w-4 h-4" />
-                    <span>অনুমোদন ও আইডি প্রদান</span>
-                  </button>
-                  <button
-                    onClick={() => handleAction(member.id, 'REJECT')}
-                    className="flex items-center space-x-1.5 px-3.5 py-2 bg-red-100 hover:bg-red-200 text-red-700 font-semibold text-xs rounded-xl transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                    <span>বাতিল</span>
-                  </button>
+                  <div className="flex items-center space-x-2 flex-shrink-0">
+                    <button
+                      onClick={() => handleAction(member.id, 'APPROVE')}
+                      disabled={isProcessing}
+                      className="flex items-center space-x-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-400 text-white font-semibold text-xs rounded-xl shadow transition-all cursor-pointer"
+                    >
+                      {isProcessing ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          <span>সিঙ্ক হচ্ছে...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-4 h-4" />
+                          <span>অনুমোদন ও আইডি প্রদান</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => handleAction(member.id, 'REJECT')}
+                      disabled={isProcessing}
+                      className="flex items-center space-x-1.5 px-3.5 py-2 bg-red-100 hover:bg-red-200 disabled:opacity-50 text-red-700 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                      <span>বাতিল</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
