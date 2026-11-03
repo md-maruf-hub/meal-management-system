@@ -366,6 +366,55 @@ export async function syncMembersFromGoogleSheet(): Promise<DatabaseSchema> {
 }
 
 /**
+ * Permanently deletes a specific month from local storage, memory cache, and Google Sheets.
+ */
+export async function deleteMonthData(yearMonth: string): Promise<boolean> {
+  const db = cachedDb || readDb();
+
+  // 1. Filter out the target month from local DB
+  db.monthLocks = (db.monthLocks || []).filter((l) => l.yearMonth !== yearMonth);
+  db.meals = (db.meals || []).filter((m) => m.yearMonth !== yearMonth);
+  db.bazarEntries = (db.bazarEntries || []).filter((b) => b.yearMonth !== yearMonth);
+  db.expenses = (db.expenses || []).filter((e) => e.yearMonth !== yearMonth);
+  db.deposits = (db.deposits || []).filter((d) => d.yearMonth !== yearMonth);
+  if (db.settlements) {
+    db.settlements = (db.settlements || []).filter((s) => s.yearMonth !== yearMonth);
+  }
+  if (db.mealRequests) {
+    db.mealRequests = (db.mealRequests || []).filter((mr) => mr.yearMonth !== yearMonth);
+  }
+  if (db.dailyMealLocks) {
+    db.dailyMealLocks = (db.dailyMealLocks || []).filter((dml) => dml.yearMonth !== yearMonth);
+  }
+
+  // Clear in-memory historical cache for this month
+  historicalCache.delete(yearMonth);
+  cachedDb = db;
+  lastFetchTime = Date.now();
+  writeDb(db);
+
+  // 2. Call Google Apps Script deleteMonth action
+  const gasUrl = getGasUrl();
+  if (gasUrl) {
+    try {
+      await fetchGasData('deleteMonth', { yearMonth });
+    } catch (gasErr) {
+      console.warn('deleteMonth GAS action error (may not be supported on deployed version yet):', gasErr);
+    }
+  }
+
+  // 3. Push full sanitized state to Google Sheets (without merging back the deleted month)
+  try {
+    await fetchGasData('syncFullData', { db });
+  } catch (syncErr) {
+    console.error('syncFullData after deleteMonth error:', syncErr);
+  }
+
+  historicalCache.clear();
+  return true;
+}
+
+/**
  * Explicitly pushes local database state to Google Sheets master spreadsheet,
  * merging with remote historical cold storage so past months are never lost.
  */

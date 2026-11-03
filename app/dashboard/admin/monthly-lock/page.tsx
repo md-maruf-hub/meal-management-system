@@ -17,6 +17,8 @@ import {
   ChevronUp,
   AlertCircle,
   Calendar,
+  Trash2,
+  RefreshCw,
 } from 'lucide-react';
 
 export default function MonthlyLockPage() {
@@ -40,15 +42,17 @@ export default function MonthlyLockPage() {
   const [removedMemberIds, setRemovedMemberIds] = useState<string[]>([]);
   const [showRosterReview, setShowRosterReview] = useState(false);
   const [creatingMonth, setCreatingMonth] = useState(false);
+  const [deletingMonth, setDeletingMonth] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchLocksAndMembers();
+    fetchLocksAndMembers(true);
   }, []);
 
-  const fetchLocksAndMembers = async () => {
+  const fetchLocksAndMembers = async (fresh = false) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/lock-month`);
+      const url = fresh ? `/api/admin/lock-month?fresh=1&t=${Date.now()}` : `/api/admin/lock-month?t=${Date.now()}`;
+      const res = await fetch(url, { cache: 'no-store' });
       const data = await res.json();
       setLocks(data.monthLocks || []);
       const members: Member[] = data.approvedMembers || [];
@@ -61,6 +65,44 @@ export default function MonthlyLockPage() {
       setLoading(false);
     } catch (err) {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteMonth = async (targetMonth: string) => {
+    const isConfirm = window.confirm(
+      `⚠️ সতর্কতা: আপনি কি নিশ্চিত যে '${targetMonth}' মাসের হিসাব ও রেকর্ড সম্পূর্ণ মুছে ফেলতে চান?\n\nগুগল শিট থেকে '${targetMonth}' এর ট্যাব এবং সমস্ত ডাটা স্থায়ীভাবে ডিলিট হয়ে যাবে।`
+    );
+    if (!isConfirm) return;
+
+    setMessage(null);
+    setDeletingMonth(targetMonth);
+
+    try {
+      const res = await fetch(
+        `/api/admin/lock-month?yearMonth=${targetMonth}&adminName=${encodeURIComponent(user?.name || 'Super Admin')}`,
+        {
+          method: 'DELETE',
+        }
+      );
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setMessage({
+          type: 'success',
+          text: data.message || `${targetMonth} মাসের হিসাব সফলভাবে মুছে ফেলা হয়েছে।`,
+        });
+        await refreshLocks();
+        await fetchLocksAndMembers(true);
+      } else {
+        setMessage({
+          type: 'error',
+          text: data.error || 'মাস মুছতে ব্যর্থ হয়েছে।',
+        });
+      }
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || 'সার্ভারে সমস্যা হয়েছে।' });
+    } finally {
+      setDeletingMonth(null);
     }
   };
 
@@ -409,8 +451,17 @@ export default function MonthlyLockPage() {
 
       {/* SECTION 3: MONTH AUDIT HISTORY */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-5 border-b border-slate-100 font-extrabold text-slate-800 text-base">
-          সকল মাসের হিসাব ও ম্যানেজার ইতিহাস
+        <div className="p-5 border-b border-slate-100 flex items-center justify-between gap-3">
+          <span className="font-extrabold text-slate-800 text-base">সকল মাসের হিসাব ও ম্যানেজার ইতিহাস</span>
+          <button
+            type="button"
+            onClick={() => fetchLocksAndMembers(true)}
+            disabled={loading}
+            className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-emerald-600' : ''}`} />
+            <span>শিট থেকে রিফ্রেশ</span>
+          </button>
         </div>
         <div className="divide-y divide-slate-100 text-sm">
           {locks.length === 0 ? (
@@ -453,6 +504,25 @@ export default function MonthlyLockPage() {
                       className="text-xs text-slate-600 hover:text-slate-900 font-bold underline transition-colors"
                     >
                       {isClosed ? 'চালু করুন' : 'লক করুন'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteMonth(lock.yearMonth)}
+                      disabled={deletingMonth === lock.yearMonth}
+                      title={`${lock.yearMonth} মাসের হিসাব এবং গুগল শিটের ট্যাব মুছে ফেলুন`}
+                      className="flex items-center space-x-1 px-2.5 py-1.5 text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-all disabled:opacity-50"
+                    >
+                      {deletingMonth === lock.yearMonth ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          <span className="text-[11px]">মুছছে...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>মুছে ফেলুন</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>

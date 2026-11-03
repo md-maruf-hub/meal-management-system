@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
-import { getDatabase, saveDatabase, syncAndPruneMonthTransition } from '../../../../lib/db';
+import { getDatabase, saveDatabase, syncAndPruneMonthTransition, deleteMonthData } from '../../../../lib/db';
 import { MonthLock, AuditLog, MonthStatus } from '../../../../lib/types';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
-  const db = await getDatabase();
+  const { searchParams } = new URL(request.url);
+  const forceFresh = searchParams.get('fresh') === '1';
+  const db = await getDatabase(forceFresh);
   const approvedMembers = (db.members || []).filter(
     (m) => m.status === 'APPROVED' && m.role !== 'SUPER_ADMIN'
   );
@@ -113,5 +117,41 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const yearMonth = searchParams.get('yearMonth');
+    const adminName = searchParams.get('adminName') || 'Super Admin';
+
+    if (!yearMonth) {
+      return NextResponse.json({ error: 'মাস (yearMonth) আবশ্যক।' }, { status: 400 });
+    }
+
+    // Add Audit Log before deleting
+    const db = await getDatabase();
+    if (!db.auditLogs) db.auditLogs = [];
+    db.auditLogs.push({
+      id: `audit-${Date.now()}`,
+      userId: 'admin',
+      userName: adminName,
+      action: 'MONTH_DELETED',
+      details: `${yearMonth} মাসের সম্পূর্ণ হিসাব ও রেকর্ড এবং গুগল শিট থেকে সংশ্লিষ্ট ট্যাব মুছে ফেলা হয়েছে।`,
+      timestamp: new Date().toISOString(),
+    });
+    await saveDatabase(db, { syncGas: false });
+
+    // Permanently delete month from local DB, cache and Google Sheets
+    await deleteMonthData(yearMonth);
+
+    return NextResponse.json({
+      success: true,
+      message: `${yearMonth} মাসের হিসাব এবং গুগল শিটের ট্যাব সফলভাবে মুছে ফেলা হয়েছে।`,
+    });
+  } catch (error: any) {
+    console.error('Delete month error:', error);
+    return NextResponse.json({ error: error.message || 'মাস মুছতে ব্যর্থ হয়েছে।' }, { status: 500 });
   }
 }

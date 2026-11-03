@@ -66,6 +66,33 @@ function doPost(e) {
       return responseJSON({ success: true, message: "Data & monthly single-tab archives synchronized successfully." });
     }
 
+    if (action === "deleteMonth") {
+      var targetYM = contents.yearMonth;
+      if (!targetYM) {
+        return responseJSON({ success: false, error: "Missing yearMonth parameter." });
+      }
+
+      // 1. Delete physical monthly tab if exists
+      var targetSheet = ss.getSheetByName(targetYM);
+      if (targetSheet && ss.getSheets().length > 1) {
+        try {
+          ss.deleteSheet(targetSheet);
+        } catch (e) {}
+      }
+
+      // 2. Delete rows in MonthLocks sheet
+      deleteRowsMatchingColumn(ss, "MonthLocks", "yearMonth", targetYM);
+
+      // 3. Delete rows in Meals, BazarEntries, Expenses, Deposits, Settlements
+      deleteRowsMatchingColumn(ss, "Meals", "yearMonth", targetYM);
+      deleteRowsMatchingColumn(ss, "BazarEntries", "yearMonth", targetYM);
+      deleteRowsMatchingColumn(ss, "Expenses", "yearMonth", targetYM);
+      deleteRowsMatchingColumn(ss, "Deposits", "yearMonth", targetYM);
+      deleteRowsMatchingColumn(ss, "Settlements", "yearMonth", targetYM);
+
+      return responseJSON({ success: true, message: "Month " + targetYM + " and its visual tab were completely deleted." });
+    }
+
     if (action === "wipeAllData") {
       var allSheets = ss.getSheets();
       for (var s = 0; s < allSheets.length; s++) {
@@ -226,6 +253,32 @@ function readSingleMonthlyArchiveTab(sheet, yearMonth, members) {
     }
   }
   return result;
+}
+
+function deleteRowsMatchingColumn(ss, sheetName, columnName, targetValue) {
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) return;
+  var data = sheet.getDataRange().getDisplayValues();
+  if (data.length < 2) return;
+  var headers = data[0];
+  var colIdx = -1;
+  for (var c = 0; c < headers.length; c++) {
+    if (headers[c] === columnName) {
+      colIdx = c;
+      break;
+    }
+  }
+  if (colIdx === -1) return;
+
+  // Traverse bottom-up when deleting rows to avoid index shifting
+  for (var r = data.length - 1; r >= 1; r--) {
+    var val = String(data[r][colIdx] || "").replace(/^'/, "").trim();
+    if (val === targetValue) {
+      try {
+        sheet.deleteRow(r + 1);
+      } catch (e) {}
+    }
+  }
 }
 
 function readSheetJSON(ss, sheetName) {
