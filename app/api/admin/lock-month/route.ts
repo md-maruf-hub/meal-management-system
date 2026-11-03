@@ -63,8 +63,8 @@ export async function POST(request: Request) {
     // 2. If a manager is selected for this month, assign them
     if (managerId) {
       const mgr = db.members.find((m) => m.id === managerId);
-      if (mgr) {
-        mgr.role = 'MANAGER';
+      if (mgr && mgr.role !== 'SUPER_ADMIN') {
+        // We keep user's global member role clean; monthLocks tracks their manager assignment
       }
     }
 
@@ -76,6 +76,12 @@ export async function POST(request: Request) {
       db.monthLocks[existingIndex].lockedAt = new Date().toISOString();
       if (managerId) {
         db.monthLocks[existingIndex].managerId = managerId;
+        if (!db.monthLocks[existingIndex].managerIds) {
+          db.monthLocks[existingIndex].managerIds = [];
+        }
+        if (!db.monthLocks[existingIndex].managerIds.includes(managerId)) {
+          db.monthLocks[existingIndex].managerIds.push(managerId);
+        }
       }
     } else {
       const newLock: MonthLock = {
@@ -83,6 +89,7 @@ export async function POST(request: Request) {
         yearMonth,
         status: newStatus,
         managerId: managerId || undefined,
+        managerIds: managerId ? [managerId] : [],
         lockedBy: adminName || 'Super Admin',
         lockedAt: new Date().toISOString(),
       };

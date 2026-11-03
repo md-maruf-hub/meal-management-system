@@ -240,8 +240,9 @@ export async function getMonthScopedData(yearMonth: string): Promise<{
   const hasLocalMeals = (db.meals || []).some((m) => m.yearMonth === yearMonth);
   const hasLocalBazar = (db.bazarEntries || []).some((b) => b.yearMonth === yearMonth);
   const hasLocalDeposits = (db.deposits || []).some((d) => d.yearMonth === yearMonth);
+  const isMonthRunning = monthLock?.status === 'RUNNING';
 
-  if (activeMonths.has(yearMonth) || hasLocalMeals || hasLocalBazar || hasLocalDeposits) {
+  if (isMonthRunning || activeMonths.has(yearMonth) || hasLocalMeals || hasLocalBazar || hasLocalDeposits) {
     return {
       yearMonth,
       source: 'VIRTUAL_DB',

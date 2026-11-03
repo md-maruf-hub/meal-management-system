@@ -40,21 +40,13 @@ export function calculateMonthlyReport(
       return true;
     }
 
-    // A member cannot be active before their join month (if no historical activity exists)
-    // Note: If joinDate is empty, treat as active from beginning
-    const joinYM = m.joinDate ? m.joinDate.substring(0, 7) : '';
-    if (joinYM && joinYM > yearMonth) {
-      // If current month is after joinYM or equals, but here joinYM is strictly greater than yearMonth
-      return false;
-    }
-
-    // A member who left in a prior month cannot be active in a future month
+    // A member who explicitly left in a prior month cannot be active in a future month (unless they have activity in this month)
     const leaveYM = m.leaveDate ? m.leaveDate.substring(0, 7) : '';
     if (leaveYM && leaveYM < yearMonth) {
       return false;
     }
 
-    // If member is not approved (e.g. INACTIVE or REJECTED) and has no activity in this month
+    // Include all approved members regardless of whether the month is past, present, or future!
     const statusUpper = String(m.status || '').trim().toUpperCase();
     if (statusUpper !== 'APPROVED' && statusUpper !== 'ACTIVE') {
       return false;
