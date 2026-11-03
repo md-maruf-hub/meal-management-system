@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { getDatabase, saveDatabase, getMonthScopedData } from '../../../lib/db';
 import { MealEntry } from '../../../lib/types';
 
+export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const yearMonth = searchParams.get('yearMonth') || new Date().toISOString().substring(0, 7);
@@ -65,7 +68,7 @@ export async function POST(request: Request) {
       yearMonth,
     });
 
-    await saveDatabase(db);
+    await saveDatabase(db, { syncGas: true, awaitGas: true });
 
     return NextResponse.json({ success: true, message: 'Meal entries updated successfully.' });
   } catch (error) {

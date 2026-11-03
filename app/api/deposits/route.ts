@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { getDatabase, saveDatabase, getMonthScopedData } from '../../../lib/db';
 import { Deposit } from '../../../lib/types';
 
+export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const yearMonth = searchParams.get('yearMonth') || new Date().toISOString().substring(0, 7);
@@ -57,7 +60,7 @@ export async function POST(request: Request) {
       yearMonth,
     });
 
-    await saveDatabase(db);
+    await saveDatabase(db, { syncGas: true, awaitGas: true });
 
     return NextResponse.json({ success: true, deposit: newDeposit });
   } catch (error) {
@@ -99,7 +102,7 @@ export async function PUT(request: Request) {
       yearMonth: target.yearMonth,
     });
 
-    await saveDatabase(db);
+    await saveDatabase(db, { syncGas: true, awaitGas: true });
 
     return NextResponse.json({ success: true, deposit: target });
   } catch (error) {
@@ -138,7 +141,7 @@ export async function DELETE(request: Request) {
       yearMonth: target.yearMonth,
     });
 
-    await saveDatabase(db);
+    await saveDatabase(db, { syncGas: true, awaitGas: true });
 
     return NextResponse.json({ success: true, message: 'Deposit deleted successfully.' });
   } catch (error) {

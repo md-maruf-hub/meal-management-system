@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getDatabase, saveDatabase, getMonthScopedData } from '../../../lib/db';
 import { BazarEntry, ExpenseItem } from '../../../lib/types';
-
 import { verifyToken } from '../../../lib/auth';
+
+export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -34,11 +36,12 @@ export async function POST(request: Request) {
     const { type, yearMonth, data, managerId } = await request.json();
     const db = await getDatabase();
 
-    // Verify manager assignment for this month
+    // Verify manager assignment for this month (supporting up to 3 managers via managerIds or managerId)
     const monthLock = db.monthLocks.find((l) => l.yearMonth === yearMonth);
-    const isMonthManager = Boolean(
-      monthLock && (monthLock.managerId === user.id || monthLock.managerId === user.memberId)
-    );
+    const mIds: string[] = monthLock?.managerIds && monthLock.managerIds.length > 0
+      ? monthLock.managerIds
+      : (monthLock?.managerId ? [monthLock.managerId] : []);
+    const isMonthManager = mIds.includes(user.id) || mIds.includes(user.memberId);
 
     if (user.role !== 'SUPER_ADMIN' && !isMonthManager) {
       return NextResponse.json({ error: 'অননুমোদিত: শুধুমাত্র এই মাসের ম্যানেজার বা সুপার এডমিন খরচ এন্ট্রি করতে পারবেন।' }, { status: 403 });
@@ -99,7 +102,7 @@ export async function POST(request: Request) {
       });
     }
 
-    await saveDatabase(db);
+    await saveDatabase(db, { syncGas: true, awaitGas: true });
     return NextResponse.json({ success: true, message: 'Expense entry recorded successfully.' });
   } catch (error) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
@@ -125,11 +128,12 @@ export async function PUT(request: Request) {
       
       const target = db.bazarEntries[index];
 
-      // Authorization check
+      // Authorization check (supporting up to 3 managers)
       const monthLock = db.monthLocks.find((l) => l.yearMonth === target.yearMonth);
-      const isMonthManager = Boolean(
-        monthLock && (monthLock.managerId === user.id || monthLock.managerId === user.memberId)
-      );
+      const mIds: string[] = monthLock?.managerIds && monthLock.managerIds.length > 0
+        ? monthLock.managerIds
+        : (monthLock?.managerId ? [monthLock.managerId] : []);
+      const isMonthManager = mIds.includes(user.id) || mIds.includes(user.memberId);
       if (user.role !== 'SUPER_ADMIN' && !isMonthManager) {
         return NextResponse.json({ error: 'অননুমোদিত: আপনি এই মাসের ম্যানেজার নন।' }, { status: 403 });
       }
@@ -149,11 +153,12 @@ export async function PUT(request: Request) {
 
       const target = db.expenses[index];
 
-      // Authorization check
+      // Authorization check (supporting up to 3 managers)
       const monthLock = db.monthLocks.find((l) => l.yearMonth === target.yearMonth);
-      const isMonthManager = Boolean(
-        monthLock && (monthLock.managerId === user.id || monthLock.managerId === user.memberId)
-      );
+      const mIds: string[] = monthLock?.managerIds && monthLock.managerIds.length > 0
+        ? monthLock.managerIds
+        : (monthLock?.managerId ? [monthLock.managerId] : []);
+      const isMonthManager = mIds.includes(user.id) || mIds.includes(user.memberId);
       if (user.role !== 'SUPER_ADMIN' && !isMonthManager) {
         return NextResponse.json({ error: 'অননুমোদিত: আপনি এই মাসের ম্যানেজার নন।' }, { status: 403 });
       }
@@ -171,7 +176,7 @@ export async function PUT(request: Request) {
       db.expenses[index] = target;
     }
 
-    await saveDatabase(db);
+    await saveDatabase(db, { syncGas: true, awaitGas: true });
     return NextResponse.json({ success: true, message: 'Expense entry updated successfully.' });
   } catch (error) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
@@ -202,11 +207,12 @@ export async function DELETE(request: Request) {
 
       const target = db.bazarEntries[index];
 
-      // Authorization check
+      // Authorization check (supporting up to 3 managers)
       const monthLock = db.monthLocks.find((l) => l.yearMonth === target.yearMonth);
-      const isMonthManager = Boolean(
-        monthLock && (monthLock.managerId === user.id || monthLock.managerId === user.memberId)
-      );
+      const mIds: string[] = monthLock?.managerIds && monthLock.managerIds.length > 0
+        ? monthLock.managerIds
+        : (monthLock?.managerId ? [monthLock.managerId] : []);
+      const isMonthManager = mIds.includes(user.id) || mIds.includes(user.memberId);
       if (user.role !== 'SUPER_ADMIN' && !isMonthManager) {
         return NextResponse.json({ error: 'অননুমোদিত: আপনি এই মাসের ম্যানেজার নন।' }, { status: 403 });
       }
@@ -221,11 +227,12 @@ export async function DELETE(request: Request) {
 
       const target = db.expenses[index];
 
-      // Authorization check
+      // Authorization check (supporting up to 3 managers)
       const monthLock = db.monthLocks.find((l) => l.yearMonth === target.yearMonth);
-      const isMonthManager = Boolean(
-        monthLock && (monthLock.managerId === user.id || monthLock.managerId === user.memberId)
-      );
+      const mIds: string[] = monthLock?.managerIds && monthLock.managerIds.length > 0
+        ? monthLock.managerIds
+        : (monthLock?.managerId ? [monthLock.managerId] : []);
+      const isMonthManager = mIds.includes(user.id) || mIds.includes(user.memberId);
       if (user.role !== 'SUPER_ADMIN' && !isMonthManager) {
         return NextResponse.json({ error: 'অননুমোদিত: আপনি এই মাসের ম্যানেজার নন।' }, { status: 403 });
       }
@@ -236,7 +243,7 @@ export async function DELETE(request: Request) {
       db.expenses.splice(index, 1);
     }
 
-    await saveDatabase(db);
+    await saveDatabase(db, { syncGas: true, awaitGas: true });
     return NextResponse.json({ success: true, message: 'Entry deleted successfully.' });
   } catch (error) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

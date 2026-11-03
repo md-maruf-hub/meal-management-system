@@ -192,6 +192,52 @@ export default function DailyMealsMatrix() {
     );
   };
 
+  const handleToggleAll = (type: 'b' | 'l' | 'd' | 'all') => {
+    if (isLocked || dailyState.length === 0) return;
+
+    if (type === 'all') {
+      const isAllChecked = dailyState.every((r) => r.b && r.l && r.d);
+      const targetState = !isAllChecked;
+
+      setDailyState((prev) =>
+        prev.map((row) => {
+          const updated = { ...row, b: targetState, l: targetState, d: targetState };
+          const newTotal = calculateRowTotal(updated);
+
+          setMeals((mPrev) => ({
+            ...mPrev,
+            [row.memberId]: {
+              ...(mPrev[row.memberId] || {}),
+              [currentDayNum]: newTotal,
+            },
+          }));
+
+          return updated;
+        })
+      );
+    } else {
+      const isColumnAllChecked = dailyState.every((r) => r[type]);
+      const targetState = !isColumnAllChecked;
+
+      setDailyState((prev) =>
+        prev.map((row) => {
+          const updated = { ...row, [type]: targetState };
+          const newTotal = calculateRowTotal(updated);
+
+          setMeals((mPrev) => ({
+            ...mPrev,
+            [row.memberId]: {
+              ...(mPrev[row.memberId] || {}),
+              [currentDayNum]: newTotal,
+            },
+          }));
+
+          return updated;
+        })
+      );
+    }
+  };
+
   const handleDailyGuestChange = (memberId: string, val: string) => {
     if (isLocked) return;
     const gCount = parseFloat(val) || 0;
@@ -526,13 +572,81 @@ export default function DailyMealsMatrix() {
 
           {/* Member B/L/D/G Table */}
           <div className="bg-white rounded-2xl border border-blue-200 shadow-md overflow-x-auto">
+            <div className="p-3 bg-blue-50/80 border-b border-blue-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span className="font-bold text-blue-900">এক ক্লিকে সকল বক্স সিলেক্ট / আনসিলেক্ট করুন:</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={isLocked || dailyState.length === 0}
+                  onClick={() => handleToggleAll('all')}
+                  className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white font-extrabold rounded-lg shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  ✓ সম্পূর্ণ সব মিল (All B+L+D)
+                </button>
+                <button
+                  type="button"
+                  disabled={isLocked || dailyState.length === 0}
+                  onClick={() => handleToggleAll('b')}
+                  className="px-2.5 py-1 bg-white hover:bg-blue-100 text-blue-800 border border-blue-300 font-bold rounded-lg shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  সব B ({bValue})
+                </button>
+                <button
+                  type="button"
+                  disabled={isLocked || dailyState.length === 0}
+                  onClick={() => handleToggleAll('l')}
+                  className="px-2.5 py-1 bg-white hover:bg-blue-100 text-blue-800 border border-blue-300 font-bold rounded-lg shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  সব L ({lValue})
+                </button>
+                <button
+                  type="button"
+                  disabled={isLocked || dailyState.length === 0}
+                  onClick={() => handleToggleAll('d')}
+                  className="px-2.5 py-1 bg-white hover:bg-blue-100 text-blue-800 border border-blue-300 font-bold rounded-lg shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  সব D ({dValue})
+                </button>
+              </div>
+            </div>
+
             <table className="w-full text-xs sm:text-sm text-left border-collapse min-w-[500px]">
               <thead>
                 <tr className="bg-blue-600 text-white font-extrabold uppercase text-xs">
                   <th className="p-3.5 pl-6 w-1/3">সদস্যের নাম</th>
-                  <th className="p-3.5 text-center w-20">B ({bValue})</th>
-                  <th className="p-3.5 text-center w-20">L ({lValue})</th>
-                  <th className="p-3.5 text-center w-20">D ({dValue})</th>
+                  <th className="p-3.5 text-center w-24">
+                    <button
+                      type="button"
+                      disabled={isLocked || dailyState.length === 0}
+                      onClick={() => handleToggleAll('b')}
+                      className="hover:underline flex items-center justify-center space-x-1 mx-auto cursor-pointer"
+                      title="সবার সকালের নাস্তা (B) টগল করুন"
+                    >
+                      <span>B ({bValue})</span>
+                    </button>
+                  </th>
+                  <th className="p-3.5 text-center w-24">
+                    <button
+                      type="button"
+                      disabled={isLocked || dailyState.length === 0}
+                      onClick={() => handleToggleAll('l')}
+                      className="hover:underline flex items-center justify-center space-x-1 mx-auto cursor-pointer"
+                      title="সবার দুপুরের খাবার (L) টগল করুন"
+                    >
+                      <span>L ({lValue})</span>
+                    </button>
+                  </th>
+                  <th className="p-3.5 text-center w-24">
+                    <button
+                      type="button"
+                      disabled={isLocked || dailyState.length === 0}
+                      onClick={() => handleToggleAll('d')}
+                      className="hover:underline flex items-center justify-center space-x-1 mx-auto cursor-pointer"
+                      title="সবার রাতের খাবার (D) টগল করুন"
+                    >
+                      <span>D ({dValue})</span>
+                    </button>
+                  </th>
                   <th className="p-3.5 text-center w-20">গেস্ট (G)</th>
                   <th className="p-3.5 text-center pr-6 w-20">মোট মিল</th>
                 </tr>
