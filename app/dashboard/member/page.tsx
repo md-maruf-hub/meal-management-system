@@ -103,6 +103,39 @@ export default function MemberDashboard() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          {/* Assigned Month Managers Badge */}
+          {report?.assignedManagers && report.assignedManagers.length > 0 ? (
+            <div className="flex items-center space-x-2.5 bg-gradient-to-r from-amber-50 to-orange-50 text-amber-900 border border-amber-200/80 px-3.5 py-2 rounded-xl text-xs shadow-sm">
+              <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-700 flex items-center justify-center font-bold text-base flex-shrink-0">
+                👑
+              </div>
+              <div>
+                <span className="text-[10px] text-amber-700 font-extrabold uppercase block tracking-wider">
+                  {selectedMonth} মাসের দায়িত্বে নিয়োজিত ম্যানেজার
+                </span>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-0.5 font-bold text-slate-800 text-xs">
+                  {report.assignedManagers.map((mgr, idx) => (
+                    <span key={mgr.id || idx} className="inline-flex items-center gap-1">
+                      <span>{mgr.name}</span>
+                      {mgr.roomNo && <span className="text-amber-800 font-semibold bg-amber-100/70 px-1.5 py-0.2 rounded text-[11px]">(রুম {mgr.roomNo})</span>}
+                      {mgr.phone && (
+                        <a href={`tel:${mgr.phone}`} className="text-emerald-700 hover:underline font-normal text-[11px] flex items-center gap-0.5 ml-0.5">
+                          📞 {mgr.phone}
+                        </a>
+                      )}
+                      {idx < (report.assignedManagers?.length || 0) - 1 && <span className="text-amber-300 font-normal ml-1">|</span>}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center space-x-2 bg-slate-50 text-slate-600 border border-slate-200 px-3 py-2 rounded-xl text-xs">
+              <span className="text-slate-400">👑</span>
+              <span className="text-[11px]">ম্যানেজার: <span className="font-semibold text-slate-500">নির্ধারিত নেই</span></span>
+            </div>
+          )}
+
           <div className="flex items-center space-x-2 bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-2 rounded-xl text-xs font-bold">
             <Wallet className="w-4 h-4 text-emerald-600 flex-shrink-0" />
             <div>

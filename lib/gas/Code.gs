@@ -438,6 +438,7 @@ function generateCombinedMonthlyTab(ss, yearMonth, members, meals, bazarEntries,
 
   // Resolve assigned managers for this month (up to 3)
   var managerNames = [];
+  var assignedManagersList = [];
   if (lock) {
     var mIds = [];
     if (Array.isArray(lock.managerIds)) {
@@ -452,20 +453,44 @@ function generateCombinedMonthlyTab(ss, yearMonth, members, meals, bazarEntries,
       for (var mb = 0; mb < members.length; mb++) {
         if (members[mb].id === targetId || members[mb].memberId === targetId) {
           managerNames.push(members[mb].name + (members[mb].roomNo ? " (রুম " + members[mb].roomNo + ")" : ""));
+          assignedManagersList.push(members[mb]);
           break;
         }
       }
     }
   }
-  var managerBanner = managerNames.length > 0 
-    ? "দায়িত্বপ্রাপ্ত ম্যানেজারবৃন্দ (" + managerNames.length + "/৩ জন): " + managerNames.join("  •  ") 
-    : "দায়িত্বপ্রাপ্ত ম্যানেজার: কোনো ম্যানেজার নির্ধারিত নেই";
+  // 3 Dedicated Manager Rows at the top of the monthly sheet
+  var managerRows = [];
+  for (var slot = 1; slot <= 3; slot++) {
+    var mgrObj = assignedManagersList[slot - 1];
+    if (mgrObj) {
+      managerRows.push([
+        "ম্যানেজার স্লট " + slot + " (রো " + slot + ")",
+        "নাম: " + mgrObj.name + (mgrObj.roomNo ? " (রুম " + mgrObj.roomNo + ")" : "") + (mgrObj.phone ? " • ফোন: " + mgrObj.phone : ""),
+        "দায়িত্ব: চলতি মাসের পূর্ণ পরিচালনা",
+        "স্ট্যাটাস: সক্রিয় (ACTIVE)"
+      ]);
+    } else {
+      managerRows.push([
+        "ম্যানেজার স্লট " + slot + " (রো " + slot + ")",
+        "ফাঁকা (খালি স্লট)",
+        "—",
+        "অনির্ধারিত"
+      ]);
+    }
+  }
 
+  // Push 3 dedicated manager rows (Rows 1, 2, 3)
+  for (var mr = 0; mr < managerRows.length; mr++) {
+    pushPaddedRow(managerRows[mr]);
+  }
+
+  // Row 4: Month Status & Info Banner
   var isClosed = lock && (lock.status === "CLOSED" || lock.status === "LOCKED");
   pushPaddedRow(["মিল ম্যানেজমেন্ট সিস্টেম", "মাসিক হিসাব বিবরণী — " + yearMonth, "স্ট্যাটাস: " + (isClosed ? "লকড" : "চলমান")]);
-  pushPaddedRow([managerBanner]);
   pushPaddedRow([]);
 
+  // Row 6: Daily Meal Matrix Headers
   pushPaddedRow(matrixHeaders);
 
   var monthMeals = [];
@@ -682,17 +707,17 @@ function generateCombinedMonthlyTab(ss, yearMonth, members, meals, bazarEntries,
 
   sheet.getRange(1, 1, rows.length, matrixHeaders.length).setValues(rows);
 
-  sheet.getRange(1, 1, 1, matrixHeaders.length)
-    .setBackground("#0f172a")
-    .setFontColor("#ffffff")
-    .setFontWeight("bold");
-
-  sheet.getRange(2, 1, 1, matrixHeaders.length)
+  sheet.getRange(1, 1, 3, matrixHeaders.length)
     .setBackground("#ecfdf5")
     .setFontColor("#065f46")
     .setFontWeight("bold");
 
   sheet.getRange(4, 1, 1, matrixHeaders.length)
+    .setBackground("#0f172a")
+    .setFontColor("#ffffff")
+    .setFontWeight("bold");
+
+  sheet.getRange(6, 1, 1, matrixHeaders.length)
     .setBackground("#1e40af")
     .setFontColor("#ffffff")
     .setFontWeight("bold");
