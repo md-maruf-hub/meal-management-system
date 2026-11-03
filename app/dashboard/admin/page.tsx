@@ -34,7 +34,7 @@ export default function AdminDashboard() {
       .catch(() => {});
 
     setLoadingMembers(true);
-    fetch(`/api/admin/managers?yearMonth=${selectedMonth}`)
+    fetch(`/api/admin/managers?yearMonth=${selectedMonth}&fresh=1`)
       .then((res) => res.json())
       .then((data) => {
         setMembers(data.members || []);

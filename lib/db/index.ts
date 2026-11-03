@@ -158,12 +158,18 @@ export async function getDatabase(forceRefresh = false): Promise<DatabaseSchema>
     return cachedDb;
   }
 
-  // 3. Cold start: instantly read local disk cache (1-2ms), then revalidate in background
+  // 3. Cold start: instantly read local disk cache
   const localDb = readDb();
   cachedDb = localDb;
   lastFetchTime = Date.now();
 
-  if (!isRefreshing) {
+  // On Vercel / serverless environment, local disk is ephemeral and usually empty (only superadmin).
+  // If we only have 1 or fewer members (cold start on Vercel), we MUST await fresh GAS sync!
+  const isVercelColdStart = Boolean(process.env.VERCEL) || (localDb.members && localDb.members.length <= 1);
+  if (isVercelColdStart) {
+    const fresh = await refreshFromGas();
+    if (fresh) return fresh;
+  } else if (!isRefreshing) {
     isRefreshing = true;
     refreshFromGas().finally(() => {
       isRefreshing = false;

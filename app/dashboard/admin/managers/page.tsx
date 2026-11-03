@@ -23,7 +23,7 @@ export default function ManagerAssignmentPage() {
   const fetchManagersData = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/managers?yearMonth=${selectedMonth}&t=${Date.now()}`, {
+      const res = await fetch(`/api/admin/managers?yearMonth=${selectedMonth}&fresh=1&t=${Date.now()}`, {
         cache: 'no-store',
       });
       const data = await res.json();

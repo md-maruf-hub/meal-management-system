@@ -7,8 +7,9 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const yearMonth = searchParams.get('yearMonth') || new Date().toISOString().substring(0, 7);
+  const forceFresh = searchParams.get('fresh') === '1';
 
-  const db = await getDatabase();
+  const db = await getDatabase(forceFresh);
   const approvedMembers = db.members.filter(
     (m) => m.status === 'APPROVED' && m.role !== 'SUPER_ADMIN'
   );

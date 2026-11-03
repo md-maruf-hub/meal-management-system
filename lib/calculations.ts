@@ -41,8 +41,10 @@ export function calculateMonthlyReport(
     }
 
     // A member cannot be active before their join month (if no historical activity exists)
+    // Note: If joinDate is empty, treat as active from beginning
     const joinYM = m.joinDate ? m.joinDate.substring(0, 7) : '';
     if (joinYM && joinYM > yearMonth) {
+      // If current month is after joinYM or equals, but here joinYM is strictly greater than yearMonth
       return false;
     }
 
@@ -53,7 +55,8 @@ export function calculateMonthlyReport(
     }
 
     // If member is not approved (e.g. INACTIVE or REJECTED) and has no activity in this month
-    if (m.status !== 'APPROVED') {
+    const statusUpper = String(m.status || '').trim().toUpperCase();
+    if (statusUpper !== 'APPROVED' && statusUpper !== 'ACTIVE') {
       return false;
     }
 

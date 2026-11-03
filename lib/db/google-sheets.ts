@@ -118,20 +118,7 @@ export function normalizeMembers(rawMembers: any[]): Member[] {
 }
 
 export async function fetchGasMembers(): Promise<Member[] | null> {
-  // 1. Try lightweight getMembers action if supported by GAS
-  try {
-    const res = (await fetchGasData('getMembers')) as any;
-    if (res && (Array.isArray(res.members) || Array.isArray(res))) {
-      const list = Array.isArray(res.members) ? res.members : res;
-      if (list.length > 0) {
-        return normalizeMembers(list);
-      }
-    }
-  } catch (err) {
-    // If getMembers action not yet active on GAS deployment, fallback to getMillData
-  }
-
-  // 2. Fallback to getMillData
+  // Directly fetch via getMillData which is reliable and supported by Google Apps Script
   try {
     const full = (await fetchGasData('getMillData')) as DatabaseSchema;
     if (full && Array.isArray(full.members) && full.members.length > 0) {
