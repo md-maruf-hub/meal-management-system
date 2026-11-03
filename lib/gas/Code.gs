@@ -518,15 +518,17 @@ function generateCombinedMonthlyTab(ss, yearMonth, members, meals, bazarEntries,
     var mgrObj = assignedManagersList[slot - 1];
     if (mgrObj) {
       managerRows.push([
-        "ম্যানেজার স্লট " + slot + " (রো " + slot + ")",
-        "নাম: " + mgrObj.name + (mgrObj.roomNo ? " (রুম " + mgrObj.roomNo + ")" : "") + (mgrObj.phone ? " • ফোন: " + mgrObj.phone : ""),
-        "দায়িত্ব: চলতি মাসের পূর্ণ পরিচালনা",
-        "স্ট্যাটাস: সক্রিয় (ACTIVE)"
+        "রোল: MANAGER (ম্যানেজার " + slot + ")",
+        mgrObj.name + (mgrObj.roomNo ? " (রুম " + mgrObj.roomNo + ")" : ""),
+        "ফোন: " + (mgrObj.phone || "—"),
+        "আইডি: " + (mgrObj.memberId || mgrObj.id || "—"),
+        "ক্ষমতা: " + yearMonth + " মাসের পূর্ণ এক্সেস (মিল, বাজার ও জমা পরিচালনা)"
       ]);
     } else {
       managerRows.push([
-        "ম্যানেজার স্লট " + slot + " (রো " + slot + ")",
+        "রোল: MANAGER (স্লট " + slot + ")",
         "ফাঁকা (খালি স্লট)",
+        "—",
         "—",
         "অনির্ধারিত"
       ]);
@@ -561,8 +563,6 @@ function generateCombinedMonthlyTab(ss, yearMonth, members, meals, bazarEntries,
   for (var a = 0; a < members.length; a++) {
     var memItem = members[a];
     if (memItem.role === "SUPER_ADMIN") continue;
-    var joinYM = String(memItem.joinDate || "").substring(0, 7);
-    if (joinYM && joinYM > yearMonth) continue;
 
     var leaveYM = String(memItem.leaveDate || "").substring(0, 7);
     if (leaveYM && leaveYM < yearMonth) {
@@ -584,7 +584,9 @@ function generateCombinedMonthlyTab(ss, yearMonth, members, meals, bazarEntries,
       if (!hadMeals && !hadDep) continue;
     }
 
-    if (memItem.status === "APPROVED" || memItem.status === "MANAGER" || memItem.role === "MANAGER" || memItem.role === "MEMBER") {
+    // Include all approved members regardless of past or future month
+    var statusStr = String(memItem.status || "").trim().toUpperCase();
+    if (statusStr === "APPROVED" || statusStr === "ACTIVE" || memItem.role === "MANAGER" || memItem.role === "MEMBER") {
       activeMembers.push(memItem);
     }
   }
