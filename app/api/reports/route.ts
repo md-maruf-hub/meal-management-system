@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { getDatabase, getMonthScopedData } from '../../../lib/db';
 import { calculateMonthlyReport } from '../../../lib/calculations';
 
+export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const yearMonth = searchParams.get('yearMonth') || new Date().toISOString().substring(0, 7);
@@ -46,8 +49,15 @@ export async function GET(request: Request) {
     assignedManagers
   );
 
-  return NextResponse.json({
-    report,
-    source: monthScoped.source, // 'VIRTUAL_DB' | 'HISTORICAL_CACHE' | 'GOOGLE_SHEET'
-  });
+  return NextResponse.json(
+    {
+      report,
+      source: monthScoped.source, // 'VIRTUAL_DB' | 'HISTORICAL_CACHE' | 'GOOGLE_SHEET'
+    },
+    {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      },
+    }
+  );
 }

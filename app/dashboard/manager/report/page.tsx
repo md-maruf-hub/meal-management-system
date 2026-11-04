@@ -69,12 +69,13 @@ export default function ManagerTotalReportPage() {
     setError('');
 
     try {
+      const ts = Date.now();
       // 1. Fetch calculated monthly report
-      const repPromise = fetch(`/api/reports?yearMonth=${selectedMonth}`).then((r) => r.json());
+      const repPromise = fetch(`/api/reports?yearMonth=${selectedMonth}&t=${ts}`, { cache: 'no-store' }).then((r) => r.json());
       // 2. Fetch bazar & utility expenses
-      const expPromise = fetch(`/api/expenses?yearMonth=${selectedMonth}`).then((r) => r.json());
+      const expPromise = fetch(`/api/expenses?yearMonth=${selectedMonth}&t=${ts}`, { cache: 'no-store' }).then((r) => r.json());
       // 3. Fetch deposits
-      const depPromise = fetch(`/api/deposits?yearMonth=${selectedMonth}`).then((r) => r.json());
+      const depPromise = fetch(`/api/deposits?yearMonth=${selectedMonth}&t=${ts}`, { cache: 'no-store' }).then((r) => r.json());
 
       const [repData, expData, depData] = await Promise.all([repPromise, expPromise, depPromise]);
 

@@ -46,10 +46,11 @@ export default function MemberDashboard() {
   const fetchData = async () => {
     setLoading(true);
     try {
+      const ts = Date.now();
       const [repRes, mealRes, actRes] = await Promise.all([
-        fetch(`/api/reports?yearMonth=${selectedMonth}`).then((r) => r.json()),
-        fetch(`/api/meals?yearMonth=${selectedMonth}`).then((r) => r.json()),
-        fetch(`/api/member/activity?yearMonth=${selectedMonth}`).then((r) => r.json()),
+        fetch(`/api/reports?yearMonth=${selectedMonth}&t=${ts}`, { cache: 'no-store' }).then((r) => r.json()),
+        fetch(`/api/meals?yearMonth=${selectedMonth}&t=${ts}`, { cache: 'no-store' }).then((r) => r.json()),
+        fetch(`/api/member/activity?yearMonth=${selectedMonth}&t=${ts}`, { cache: 'no-store' }).then((r) => r.json()),
       ]);
 
       setReport(repRes.report || null);
