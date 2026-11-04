@@ -56,8 +56,9 @@ export async function POST(request: Request) {
 
     if (type === 'BAZAR') {
       const { date, amount, description, shopperName } = data;
+      const uniqueSuffix = Math.random().toString(36).substring(2, 7);
       const newEntry: BazarEntry = {
-        id: `bazar-${Date.now()}`,
+        id: `bazar-${Date.now()}-${uniqueSuffix}`,
         yearMonth,
         date: date || new Date().toISOString().split('T')[0],
         amount: Number(amount),
@@ -80,8 +81,9 @@ export async function POST(request: Request) {
       });
     } else if (type === 'UTILITY') {
       const { category, amount, memberId } = data;
+      const uniqueSuffix = Math.random().toString(36).substring(2, 7);
       const newExpense: ExpenseItem = {
-        id: `exp-${Date.now()}`,
+        id: `exp-${Date.now()}-${uniqueSuffix}`,
         yearMonth,
         category,
         memberId: memberId || undefined,

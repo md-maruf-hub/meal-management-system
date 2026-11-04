@@ -33,8 +33,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `Month ${yearMonth} is closed/locked. Deposits cannot be modified.` }, { status: 403 });
     }
 
+    const uniqueSuffix = Math.random().toString(36).substring(2, 7);
     const newDeposit: Deposit = {
-      id: `dep-${Date.now()}`,
+      id: `dep-${Date.now()}-${uniqueSuffix}`,
       memberId,
       yearMonth,
       date: date || new Date().toISOString().split('T')[0],

@@ -417,47 +417,15 @@ export async function deleteMonthData(yearMonth: string): Promise<boolean> {
 
 /**
  * Explicitly pushes local database state to Google Sheets master spreadsheet,
- * merging with remote historical cold storage so past months are never lost.
+ * directly sending the current database state cleanly without redundant slow remote fetch.
  */
 export async function pushToGoogleSheets(): Promise<boolean> {
   const db = cachedDb || readDb();
   const gasUrl = getGasUrl();
   if (!gasUrl) throw new Error('GAS_API_URL is not configured');
 
-  let payloadDb: DatabaseSchema = db;
-  try {
-    const remoteData = (await fetchGasData('getMillData')) as DatabaseSchema;
-    if (remoteData) {
-      const localMealMonths = new Set((db.meals || []).map((m) => m.yearMonth));
-      const localBazarMonths = new Set((db.bazarEntries || []).map((b) => b.yearMonth));
-      const localExpenseMonths = new Set((db.expenses || []).map((e) => e.yearMonth));
-      const localDepositMonths = new Set((db.deposits || []).map((d) => d.yearMonth));
-      const localSettlementMonths = new Set((db.settlements || []).map((s) => s.yearMonth));
-      const localLockMonths = new Set((db.monthLocks || []).map((l) => l.yearMonth));
-
-      // Retain past closed months' records from Google Sheets cold storage
-      const preservedMeals = (remoteData.meals || []).filter((m) => !localMealMonths.has(m.yearMonth));
-      const preservedBazar = (remoteData.bazarEntries || []).filter((b) => !localBazarMonths.has(b.yearMonth));
-      const preservedExpenses = (remoteData.expenses || []).filter((e) => !localExpenseMonths.has(e.yearMonth));
-      const preservedDeposits = (remoteData.deposits || []).filter((d) => !localDepositMonths.has(d.yearMonth));
-      const preservedSettlements = (remoteData.settlements || []).filter((s) => !localSettlementMonths.has(s.yearMonth));
-      const preservedLocks = (remoteData.monthLocks || []).filter((l) => !localLockMonths.has(l.yearMonth));
-
-      payloadDb = {
-        ...db,
-        meals: [...preservedMeals, ...(db.meals || [])],
-        bazarEntries: [...preservedBazar, ...(db.bazarEntries || [])],
-        expenses: [...preservedExpenses, ...(db.expenses || [])],
-        deposits: [...preservedDeposits, ...(db.deposits || [])],
-        settlements: [...preservedSettlements, ...(db.settlements || [])],
-        monthLocks: [...preservedLocks, ...(db.monthLocks || [])],
-      };
-    }
-  } catch (err) {
-    console.warn('Historical merge before GAS sync warning:', err);
-  }
-
-  await fetchGasData('syncFullData', { db: payloadDb });
+  // Push directly to Google Sheets - GAS server preserves other historical months independently
+  await fetchGasData('syncFullData', { db });
   historicalCache.clear();
   return true;
 }
