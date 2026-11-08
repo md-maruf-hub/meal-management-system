@@ -41,8 +41,9 @@ export default function DepositPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
+      const ts = Date.now();
       // 1. Fetch Month Lock Status
-      const lockRes = await fetch(`/api/admin/lock-month`);
+      const lockRes = await fetch(`/api/admin/lock-month?t=${ts}`, { cache: 'no-store' });
       const lockData = await lockRes.json();
       const currentLock = lockData.monthLocks?.find((l: any) => l.yearMonth === selectedMonth);
       const isClosed = currentLock?.status === 'CLOSED' || currentLock?.status === 'LOCKED';
@@ -50,12 +51,12 @@ export default function DepositPage() {
       setMonthManagerId(currentLock?.managerId || null);
 
       // 2. Fetch Deposits
-      const depRes = await fetch(`/api/deposits?yearMonth=${selectedMonth}`);
+      const depRes = await fetch(`/api/deposits?yearMonth=${selectedMonth}&t=${ts}`, { cache: 'no-store' });
       const depData = await depRes.json();
       setDeposits(depData.deposits || []);
 
       // 3. Fetch Monthly Report
-      const repRes = await fetch(`/api/reports?yearMonth=${selectedMonth}`);
+      const repRes = await fetch(`/api/reports?yearMonth=${selectedMonth}&t=${ts}`, { cache: 'no-store' });
       const repData = await repRes.json();
       setReport(repData.report || null);
 

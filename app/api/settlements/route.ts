@@ -3,6 +3,9 @@ import { getDatabase, saveDatabase, getMonthScopedData } from '../../../lib/db';
 import { verifyToken } from '../../../lib/auth';
 import { SettlementEntry, Deposit } from '../../../lib/types';
 
+export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -40,10 +43,12 @@ export async function POST(request: Request) {
 
     const db = await getDatabase();
 
+    // Verify authorization: supporting up to 3 managers or Super Admin
     const monthLock = (db.monthLocks || []).find((l) => l.yearMonth === String(yearMonth));
-    const isMonthManager = Boolean(
-      monthLock && (monthLock.managerId === user.id || monthLock.managerId === user.memberId)
-    );
+    const mIds: string[] = monthLock?.managerIds && monthLock.managerIds.length > 0
+      ? monthLock.managerIds
+      : (monthLock?.managerId ? [monthLock.managerId] : []);
+    const isMonthManager = mIds.includes(user.id) || mIds.includes(user.memberId);
 
     if (user.role !== 'SUPER_ADMIN' && !isMonthManager) {
       return NextResponse.json(
@@ -100,7 +105,7 @@ export async function POST(request: Request) {
       yearMonth: String(yearMonth),
     });
 
-    await saveDatabase(db);
+    await saveDatabase(db, { syncGas: true, awaitGas: true });
     return NextResponse.json({ success: true, settlement: newSettlement, deposit: settlementDeposit });
   } catch (error) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

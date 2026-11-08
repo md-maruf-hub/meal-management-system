@@ -24,29 +24,36 @@ const HISTORICAL_TTL_MS = 5 * 60 * 1000; // 5 minutes cache for past months
 
 /**
  * Returns active months that must reside in the local Virtual Database (Hot Storage).
- * - Current calendar month (e.g. 2026-10)
- * - If day <= 7 of month (transition buffer), include previous month for seamless dues finalization
+ * - Current calendar month (e.g. 2026-11)
  * - Any month with status === 'RUNNING'
+ * - Any closed month that was locked within the last 30 days (for seamless settlement and review)
+ * - Closed months older than 30 days are cleanly pruned and loaded on-demand from Google Sheets.
  */
 export function getActiveYearMonths(db?: DatabaseSchema): string[] {
   const currentYM = new Date().toISOString().substring(0, 7);
   const activeSet = new Set<string>();
   activeSet.add(currentYM);
 
-  // Transition buffer: If today is within day 1-7, also keep immediate previous month active
-  const todayDate = new Date().getDate();
-  if (todayDate <= 7) {
-    const prevDate = new Date();
-    prevDate.setDate(0); // last day of prev month
-    activeSet.add(prevDate.toISOString().substring(0, 7));
-  }
-
-  // Any month currently marked as RUNNING in monthLocks
   const targetDb = db || cachedDb || readDb();
+  const nowMs = Date.now();
+  const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
   if (targetDb?.monthLocks) {
     targetDb.monthLocks.forEach((lock) => {
-      if (lock.status === 'RUNNING' && lock.yearMonth) {
+      if (!lock.yearMonth) return;
+
+      // 1. Any month currently marked as RUNNING is always active in Hot Storage
+      if (lock.status === 'RUNNING') {
         activeSet.add(lock.yearMonth);
+        return;
+      }
+
+      // 2. Closed months locked within the last 30 days stay in Hot Storage for settlement
+      if (lock.lockedAt) {
+        const lockedTime = new Date(lock.lockedAt).getTime();
+        if (!isNaN(lockedTime) && nowMs - lockedTime <= THIRTY_DAYS_MS) {
+          activeSet.add(lock.yearMonth);
+        }
       }
     });
   }

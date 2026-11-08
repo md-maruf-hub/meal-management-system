@@ -62,8 +62,9 @@ export default function DailyMealsMatrix() {
     setError('');
 
     try {
+      const ts = Date.now();
       // 1. Fetch Lock status
-      const lockRes = await fetch(`/api/admin/lock-month`);
+      const lockRes = await fetch(`/api/admin/lock-month?t=${ts}`, { cache: 'no-store' });
       const lockData = await lockRes.json();
       const monthLock = lockData.monthLocks?.find(
         (l: { yearMonth: string; status: string }) => l.yearMonth === selectedMonth && (l.status === 'CLOSED' || l.status === 'LOCKED')
@@ -71,7 +72,7 @@ export default function DailyMealsMatrix() {
       setIsLocked(Boolean(monthLock));
 
       // 2. Fetch Meals
-      const mealsRes = await fetch(`/api/meals?yearMonth=${selectedMonth}`);
+      const mealsRes = await fetch(`/api/meals?yearMonth=${selectedMonth}&t=${ts}`, { cache: 'no-store' });
       const mealsData = await mealsRes.json();
 
       const matrixMap: Record<string, Record<number, number>> = {};
@@ -83,7 +84,7 @@ export default function DailyMealsMatrix() {
       setMeals(matrixMap);
 
       // 3. Fetch Members & Managers
-      const repRes = await fetch(`/api/reports?yearMonth=${selectedMonth}`);
+      const repRes = await fetch(`/api/reports?yearMonth=${selectedMonth}&t=${ts}`, { cache: 'no-store' });
       const repData = await repRes.json();
       setAssignedManagers(repData.report?.assignedManagers || []);
       const activeMembers = repData.report?.memberCalculations || [];

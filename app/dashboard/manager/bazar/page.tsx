@@ -31,7 +31,7 @@ export default function BazarPage() {
   const fetchBazar = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/expenses?yearMonth=${selectedMonth}`);
+      const res = await fetch(`/api/expenses?yearMonth=${selectedMonth}&t=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
       setBazarEntries(data.bazarEntries || []);
       setLoading(false);
