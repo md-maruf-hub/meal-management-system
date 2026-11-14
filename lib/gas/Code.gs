@@ -62,7 +62,7 @@ function doPost(e) {
     
     if (action === "syncFullData") {
       writeFullDataSolution(ss, contents.db || {});
-      generateAllMonthlyVisualSheets(ss, contents.db || {});
+      generateAllMonthlyVisualSheets(ss, contents.db || {}, contents.targetYM || contents.yearMonth);
       return responseJSON({ success: true, message: "Data & monthly single-tab archives synchronized successfully." });
     }
 
@@ -414,7 +414,7 @@ function writeCleanSheetJSON(ss, sheetName, items) {
   sheet.getRange(1, 1, values.length, headers.length).setValues(values);
 }
 
-function generateAllMonthlyVisualSheets(ss, db) {
+function generateAllMonthlyVisualSheets(ss, db, targetYM) {
   var meals = db.meals || [];
   var members = db.members || [];
   var bazarEntries = db.bazarEntries || [];
@@ -422,31 +422,42 @@ function generateAllMonthlyVisualSheets(ss, db) {
   var deposits = db.deposits || [];
   var monthLocks = db.monthLocks || [];
 
+  // Fast-path: If a specific target month is given, only update that month's visual tab!
+  if (targetYM && /^\d{4}-\d{2}$/.test(String(targetYM))) {
+    var ymStr = String(targetYM).trim();
+    var targetLock = null;
+    for (var lk = 0; lk < monthLocks.length; lk++) {
+      if (monthLocks[lk].yearMonth === ymStr) {
+        targetLock = monthLocks[lk];
+        break;
+      }
+    }
+    var isClosedTarget = targetLock && (targetLock.status === "CLOSED" || targetLock.status === "LOCKED");
+    var tabSheet = generateCombinedMonthlyTab(ss, ymStr, members, meals, bazarEntries, expenses, deposits, targetLock);
+    if (tabSheet) {
+      try {
+        tabSheet.setTabColor(isClosedTarget ? "#64748b" : "#10b981");
+      } catch (e) {}
+    }
+    return;
+  }
+
+  // Otherwise, identify only RUNNING months or months without an existing visual tab
   var monthsSet = {};
-  for (var i = 0; i < meals.length; i++) {
-    var ym = String(meals[i].yearMonth || "").replace(/^'/, "").trim();
-    if (ym) monthsSet[ym] = true;
-  }
-  for (var b = 0; b < bazarEntries.length; b++) {
-    var ymB = String(bazarEntries[b].yearMonth || "").replace(/^'/, "").trim();
-    if (ymB) monthsSet[ymB] = true;
-  }
-  for (var e = 0; e < expenses.length; e++) {
-    var ymE = String(expenses[e].yearMonth || "").replace(/^'/, "").trim();
-    if (ymE) monthsSet[ymE] = true;
-  }
-  for (var d = 0; d < deposits.length; d++) {
-    var ymD = String(deposits[d].yearMonth || "").replace(/^'/, "").trim();
-    if (ymD) monthsSet[ymD] = true;
-  }
   for (var ml = 0; ml < monthLocks.length; ml++) {
-    var ymL = String(monthLocks[ml].yearMonth || "").replace(/^'/, "").trim();
-    if (ymL) monthsSet[ymL] = true;
+    var lk = monthLocks[ml];
+    if (lk.yearMonth) {
+      if (lk.status === "RUNNING" || !ss.getSheetByName(lk.yearMonth)) {
+        monthsSet[lk.yearMonth] = true;
+      }
+    }
   }
+
+  // Also include current calendar month if running or missing
+  var currentYM = Utilities.formatDate(new Date(), "GMT+6", "yyyy-MM");
+  monthsSet[currentYM] = true;
 
   var monthsList = Object.keys(monthsSet);
-  if (monthsList.length === 0) monthsList = ["2026-10"];
-
   for (var m = 0; m < monthsList.length; m++) {
     var yearMonth = monthsList[m];
     var lock = null;

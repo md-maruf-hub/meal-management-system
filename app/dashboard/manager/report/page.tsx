@@ -711,6 +711,10 @@ export default function ManagerTotalReportPage() {
                                 </span>
                                 <span className="text-[10px] text-emerald-600 font-semibold mt-0.5">উদ্বৃত্ত জমা</span>
                               </div>
+                            ) : m.isSettled || (m.settledAmount && m.settledAmount > 0) ? (
+                              <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200 font-bold text-[11px]">
+                                ✓ পরিশোধিত (০.০০)
+                              </span>
                             ) : (
                               <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-bold text-[11px]">
                                 সমাপনী ০.০০

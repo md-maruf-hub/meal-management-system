@@ -68,7 +68,7 @@ export async function POST(request: Request) {
       yearMonth,
     });
 
-    await saveDatabase(db, { syncGas: true, awaitGas: true });
+    await saveDatabase(db, { syncGas: true, awaitGas: true, targetYM: yearMonth });
 
     return NextResponse.json({ success: true, message: 'Meal entries updated successfully.' });
   } catch (error) {

@@ -66,7 +66,10 @@ export default function MemberDashboard() {
   };
 
   const memberData: MemberCalculation | undefined = report?.memberCalculations.find(
-    (m) => m.memberId === user?.id || m.memberName.toLowerCase() === user?.name.toLowerCase()
+    (m) =>
+      m.memberId === user?.id ||
+      (Boolean(user?.memberId) && m.memberId === user?.memberId) ||
+      (Boolean(m.memberName && user?.name) && m.memberName.trim().toLowerCase() === user?.name.trim().toLowerCase())
   );
 
   // Map member daily meals for day 1..31
@@ -242,14 +245,24 @@ export default function MemberDashboard() {
               ) : isSettled || settled > 0 ? (
                 <div>
                   <p className="text-2xl font-extrabold text-blue-700">
-                    ৳ {settled.toFixed(2)}
+                    ৳ 0.00
                   </p>
                   <span className="inline-block text-xs font-bold text-blue-800 uppercase tracking-wider">
-                    পরিশোধিত / সমন্বিত (SETTLED)
+                    ✅ সকল বকেয়া পরিশোধিত (SETTLED)
                   </span>
+                  {settled > 0 && (
+                    <p className="text-[11px] font-semibold text-blue-600 mt-0.5">
+                      সমন্বিত/পরিশোধকৃত: ৳ {settled.toFixed(2)}
+                    </p>
+                  )}
                 </div>
               ) : (
-                <p className="text-xl font-bold text-slate-700">৳ 0.00 (ব্যালেন্সড)</p>
+                <div>
+                  <p className="text-2xl font-extrabold text-slate-700">৳ 0.00</p>
+                  <span className="inline-block text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    হিসাব সমান (BALANCED)
+                  </span>
+                </div>
               )}
             </div>
           </div>
@@ -547,7 +560,7 @@ export default function MemberDashboard() {
                                 : refundVal > 0
                                 ? '💵 মেস থেকে আপনার ফেরত প্রাপ্য (REFUND)'
                                 : isSettled || settled > 0
-                                ? '✅ সেটেলমেন্ট সম্পন্ন (SETTLED)'
+                                ? '✅ সকল দেনা-পাওনা পরিশোধিত (SETTLED)'
                                 : '✓ ব্যালেন্সড অবস্থা (BALANCED)'}
                             </span>
                           </div>
@@ -558,7 +571,7 @@ export default function MemberDashboard() {
                             : refundVal > 0
                             ? 'মেসের ফান্ড থেকে এই টাকা আপনাকে ফেরত দেওয়া হবে'
                             : isSettled || settled > 0
-                            ? 'চলতি মাসের দেনা-পাওনা পরিশোধিত ও সমন্বিত'
+                            ? (settled > 0 ? `চলতি মাসের সকল দেনা-পাওনা পরিশোধিত ও সমন্বিত (পরিশোধ: ৳ ${settled.toFixed(2)})` : 'চলতি মাসের দেনা-পাওনা পরিশোধিত ও সমন্বিত')
                             : 'কোনো বকেয়া বা ফেরত অবশিষ্ট নেই'}
                         </td>
                         <td className="py-4 px-4 sm:px-6 text-right font-black font-mono text-lg sm:text-xl">
@@ -567,7 +580,7 @@ export default function MemberDashboard() {
                             : refundVal > 0
                             ? `৳ ${refundVal.toFixed(2)}`
                             : isSettled || settled > 0
-                            ? `৳ ${settled.toFixed(2)}`
+                            ? `৳ 0.00`
                             : `৳ 0.00`}
                         </td>
                       </tr>

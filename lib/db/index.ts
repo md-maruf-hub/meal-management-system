@@ -113,12 +113,55 @@ async function refreshFromGas(): Promise<DatabaseSchema | null> {
       const preservedLocalMembers = (currentLocal?.members || []).filter((lm) => {
         return !remoteIdSet.has(lm.id) && !remotePhoneSet.has(lm.phone);
       });
-
       const mergedMembers = [...(data.members || []), ...preservedLocalMembers];
+
+      // Protect local deposits not yet synced to Google Sheets
+      const remoteDepIdSet = new Set((data.deposits || []).map((d) => d.id));
+      const preservedLocalDeposits = (currentLocal?.deposits || []).filter((d) => !remoteDepIdSet.has(d.id));
+      const mergedDeposits = [...(data.deposits || []), ...preservedLocalDeposits];
+
+      // Protect local bazar entries not yet synced to Google Sheets
+      const remoteBazarIdSet = new Set((data.bazarEntries || []).map((b) => b.id));
+      const preservedLocalBazar = (currentLocal?.bazarEntries || []).filter((b) => !remoteBazarIdSet.has(b.id));
+      const mergedBazar = [...(data.bazarEntries || []), ...preservedLocalBazar];
+
+      // Protect local expenses not yet synced to Google Sheets
+      const remoteExpIdSet = new Set((data.expenses || []).map((e) => e.id));
+      const preservedLocalExpenses = (currentLocal?.expenses || []).filter((e) => !remoteExpIdSet.has(e.id));
+      const mergedExpenses = [...(data.expenses || []), ...preservedLocalExpenses];
+
+      // Protect local meals not yet synced to Google Sheets
+      const remoteMealKeySet = new Set((data.meals || []).map((m) => `${m.yearMonth}_${m.memberId}_${m.day}`));
+      const preservedLocalMeals = (currentLocal?.meals || []).filter(
+        (m) => !remoteMealKeySet.has(`${m.yearMonth}_${m.memberId}_${m.day}`)
+      );
+      const mergedMeals = [...(data.meals || []), ...preservedLocalMeals];
+
+      // Protect local settlements not yet synced to Google Sheets
+      const remoteSetIdSet = new Set((data.settlements || []).map((s) => s.id));
+      const preservedLocalSettlements = (currentLocal?.settlements || []).filter((s) => !remoteSetIdSet.has(s.id));
+      const mergedSettlements = [...(data.settlements || []), ...preservedLocalSettlements];
+
+      // Protect local month locks not yet synced to Google Sheets
+      const remoteLockYMSet = new Set((data.monthLocks || []).map((l) => l.yearMonth));
+      const preservedLocalLocks = (currentLocal?.monthLocks || []).filter((l) => !remoteLockYMSet.has(l.yearMonth));
+      const mergedMonthLocks = [...(data.monthLocks || []), ...preservedLocalLocks];
+
+      // Protect local audit logs not yet synced to Google Sheets
+      const remoteLogIdSet = new Set((data.auditLogs || []).map((l) => l.id));
+      const preservedLocalLogs = (currentLocal?.auditLogs || []).filter((l) => !remoteLogIdSet.has(l.id));
+      const mergedAuditLogs = [...(data.auditLogs || []), ...preservedLocalLogs];
 
       const merged: DatabaseSchema = {
         ...data,
         members: mergedMembers,
+        deposits: mergedDeposits,
+        bazarEntries: mergedBazar,
+        expenses: mergedExpenses,
+        meals: mergedMeals,
+        settlements: mergedSettlements,
+        monthLocks: mergedMonthLocks,
+        auditLogs: mergedAuditLogs,
         mealRequests: currentLocal?.mealRequests || [],
         dailyMealLocks: currentLocal?.dailyMealLocks || [],
         managerNotes: currentLocal?.managerNotes || data.managerNotes || [],
@@ -188,7 +231,7 @@ export async function getDatabase(forceRefresh = false): Promise<DatabaseSchema>
 
 export async function saveDatabase(
   data: DatabaseSchema,
-  options: { syncGas?: boolean; awaitGas?: boolean } = { syncGas: true }
+  options: { syncGas?: boolean; awaitGas?: boolean; targetYM?: string } = { syncGas: true }
 ): Promise<void> {
   cachedDb = data;
   lastFetchTime = Date.now();
@@ -199,12 +242,12 @@ export async function saveDatabase(
     const gasUrl = getGasUrl();
     if (gasUrl) {
       if (options.awaitGas) {
-        await pushToGoogleSheets();
+        await pushToGoogleSheets(options.targetYM);
       } else {
         // Serialize background pushes so updates execute strictly in order
         pushQueue = pushQueue
           .then(async () => {
-            await pushToGoogleSheets();
+            await pushToGoogleSheets(options.targetYM);
           })
           .catch((err) => {
             console.error('GAS background sync error:', err);
@@ -426,13 +469,13 @@ export async function deleteMonthData(yearMonth: string): Promise<boolean> {
  * Explicitly pushes local database state to Google Sheets master spreadsheet,
  * directly sending the current database state cleanly without redundant slow remote fetch.
  */
-export async function pushToGoogleSheets(): Promise<boolean> {
+export async function pushToGoogleSheets(targetYM?: string): Promise<boolean> {
   const db = cachedDb || readDb();
   const gasUrl = getGasUrl();
   if (!gasUrl) throw new Error('GAS_API_URL is not configured');
 
   // Push directly to Google Sheets - GAS server preserves other historical months independently
-  await fetchGasData('syncFullData', { db });
+  await fetchGasData('syncFullData', { db, targetYM });
   historicalCache.clear();
   return true;
 }

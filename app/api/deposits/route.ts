@@ -61,7 +61,7 @@ export async function POST(request: Request) {
       yearMonth,
     });
 
-    await saveDatabase(db, { syncGas: true, awaitGas: true });
+    await saveDatabase(db, { syncGas: true, awaitGas: true, targetYM: yearMonth });
 
     return NextResponse.json({ success: true, deposit: newDeposit });
   } catch (error) {
@@ -103,7 +103,7 @@ export async function PUT(request: Request) {
       yearMonth: target.yearMonth,
     });
 
-    await saveDatabase(db, { syncGas: true, awaitGas: true });
+    await saveDatabase(db, { syncGas: true, awaitGas: true, targetYM: target.yearMonth });
 
     return NextResponse.json({ success: true, deposit: target });
   } catch (error) {
@@ -142,7 +142,7 @@ export async function DELETE(request: Request) {
       yearMonth: target.yearMonth,
     });
 
-    await saveDatabase(db, { syncGas: true, awaitGas: true });
+    await saveDatabase(db, { syncGas: true, awaitGas: true, targetYM: target.yearMonth });
 
     return NextResponse.json({ success: true, message: 'Deposit deleted successfully.' });
   } catch (error) {

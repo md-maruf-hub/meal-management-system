@@ -104,7 +104,7 @@ export async function POST(request: Request) {
       });
     }
 
-    await saveDatabase(db, { syncGas: true, awaitGas: true });
+    await saveDatabase(db, { syncGas: true, awaitGas: true, targetYM: yearMonth });
     return NextResponse.json({ success: true, message: 'Expense entry recorded successfully.' });
   } catch (error) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
@@ -123,12 +123,14 @@ export async function PUT(request: Request) {
 
     const { type, id, data } = await request.json();
     const db = await getDatabase();
+    let targetYM: string | undefined;
 
     if (type === 'BAZAR') {
       const index = db.bazarEntries.findIndex((b) => b.id === id);
       if (index === -1) return NextResponse.json({ error: 'Entry not found' }, { status: 404 });
       
       const target = db.bazarEntries[index];
+      targetYM = target.yearMonth;
 
       // Authorization check (supporting up to 3 managers)
       const monthLock = db.monthLocks.find((l) => l.yearMonth === target.yearMonth);
@@ -154,6 +156,7 @@ export async function PUT(request: Request) {
       if (index === -1) return NextResponse.json({ error: 'Expense not found' }, { status: 404 });
 
       const target = db.expenses[index];
+      targetYM = target.yearMonth;
 
       // Authorization check (supporting up to 3 managers)
       const monthLock = db.monthLocks.find((l) => l.yearMonth === target.yearMonth);
@@ -178,7 +181,7 @@ export async function PUT(request: Request) {
       db.expenses[index] = target;
     }
 
-    await saveDatabase(db, { syncGas: true, awaitGas: true });
+    await saveDatabase(db, { syncGas: true, awaitGas: true, targetYM });
     return NextResponse.json({ success: true, message: 'Expense entry updated successfully.' });
   } catch (error) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
@@ -202,12 +205,14 @@ export async function DELETE(request: Request) {
     if (!id || !type) return NextResponse.json({ error: 'Missing id or type.' }, { status: 400 });
 
     const db = await getDatabase();
+    let targetYM: string | undefined;
 
     if (type === 'BAZAR') {
       const index = db.bazarEntries.findIndex((b) => b.id === id);
       if (index === -1) return NextResponse.json({ error: 'Entry not found' }, { status: 404 });
 
       const target = db.bazarEntries[index];
+      targetYM = target.yearMonth;
 
       // Authorization check (supporting up to 3 managers)
       const monthLock = db.monthLocks.find((l) => l.yearMonth === target.yearMonth);
@@ -228,6 +233,7 @@ export async function DELETE(request: Request) {
       if (index === -1) return NextResponse.json({ error: 'Expense not found' }, { status: 404 });
 
       const target = db.expenses[index];
+      targetYM = target.yearMonth;
 
       // Authorization check (supporting up to 3 managers)
       const monthLock = db.monthLocks.find((l) => l.yearMonth === target.yearMonth);
@@ -245,7 +251,7 @@ export async function DELETE(request: Request) {
       db.expenses.splice(index, 1);
     }
 
-    await saveDatabase(db, { syncGas: true, awaitGas: true });
+    await saveDatabase(db, { syncGas: true, awaitGas: true, targetYM });
     return NextResponse.json({ success: true, message: 'Entry deleted successfully.' });
   } catch (error) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

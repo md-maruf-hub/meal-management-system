@@ -105,7 +105,7 @@ export async function POST(request: Request) {
       yearMonth: String(yearMonth),
     });
 
-    await saveDatabase(db, { syncGas: true, awaitGas: true });
+    await saveDatabase(db, { syncGas: true, awaitGas: true, targetYM: String(yearMonth) });
     return NextResponse.json({ success: true, settlement: newSettlement, deposit: settlementDeposit });
   } catch (error) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
