@@ -1,5 +1,14 @@
 import type { Metadata } from 'next';
+import { Hind_Siliguri } from 'next/font/google';
+import { Toaster } from 'sonner';
 import './globals.css';
+
+const hindSiliguri = Hind_Siliguri({
+  subsets: ['bengali', 'latin'],
+  weight: ['300', '400', '500', '600', '700'],
+  display: 'swap',
+  variable: '--font-bengali',
+});
 
 export const metadata: Metadata = {
   title: 'মিল ম্যানেজমেন্ট সিস্টেম - মেস হিসাব পোর্টাল',
@@ -17,9 +26,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="bn">
-      <body>{children}</body>
+    <html lang="bn" className={hindSiliguri.variable}>
+      <body>
+        {children}
+        <Toaster
+          position="top-center"
+          richColors
+          closeButton
+          duration={3000}
+          toastOptions={{
+            className: 'font-bengali',
+            style: { fontFamily: 'var(--font-bengali)' },
+          }}
+        />
+      </body>
     </html>
   );
 }
-

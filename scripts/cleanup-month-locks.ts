@@ -1,6 +1,6 @@
-import { readDb, writeDb } from '../lib/db/local-storage';
-import { pushToGoogleSheets } from '../lib/gas/push'; // adjust import path if needed
-import { DatabaseSchema, MonthLock } from '../lib/types';
+import { readDb, writeDb, DatabaseSchema } from '../lib/db/local-storage';
+import { pushToGoogleSheets } from '../lib/db';
+import { MonthLock } from '../lib/types';
 
 /**
  * Daily cleanup job that removes data for month locks that have been CLOSED for more than 30 days.
@@ -33,7 +33,10 @@ async function cleanupOldMonthLocks() {
   }
 
   // Helper to filter out records belonging to removed months
-  const filterByYM = (arr: any[]) => arr?.filter((rec) => !removeYMs.includes(rec.yearMonth));
+  const filterByYM = <T extends { yearMonth?: string }>(arr?: T[]): T[] => {
+    if (!arr) return [];
+    return arr.filter((rec) => !removeYMs.includes(rec.yearMonth || ''));
+  };
 
   db.meals = filterByYM(db.meals);
   db.bazarEntries = filterByYM(db.bazarEntries);
@@ -45,10 +48,10 @@ async function cleanupOldMonthLocks() {
   writeDb(db);
   console.log(`Cleaned up data for months: ${removeYMs.join(', ')}`);
 
-  // Notify Google Sheets – fast‑path delete for each month
+  // Notify Google Sheets – fast‑path update for each month
   for (const ym of removeYMs) {
     try {
-      await pushToGoogleSheets({ targetYM: ym, deleteMonth: true });
+      await pushToGoogleSheets(ym);
       console.log(`Pushed month ${ym} cleanup to Google Sheets`);
     } catch (e) {
       console.warn(`Failed to push cleanup for ${ym}:`, e);

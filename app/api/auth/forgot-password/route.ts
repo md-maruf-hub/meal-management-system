@@ -1,9 +1,16 @@
+import { randomInt } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { getDatabase, saveDatabase } from '../../../../lib/db';
 import { fetchGasData, getGasUrl } from '../../../../lib/db/google-sheets';
 import { SecurityToken } from '../../../../lib/types';
 
 export async function POST(request: Request) {
+  const genericResponse = () =>
+    NextResponse.json({
+      success: true,
+      message: 'If an account exists for this email, password reset instructions will be sent.',
+    });
+
   try {
     const { email } = await request.json();
     if (!email) {
@@ -15,11 +22,10 @@ export async function POST(request: Request) {
     const user = db.members.find((m) => m.email && m.email.toLowerCase() === cleanEmail);
 
     if (!user) {
-      return NextResponse.json({ error: 'No member registered with this email address.' }, { status: 404 });
+      return genericResponse();
     }
 
-    // 1. Generate OTP Code first on Next.js server to ensure perfect synchronization
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code = randomInt(100000, 1000000).toString();
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 10 * 60 * 1000).toISOString();
 
@@ -36,31 +42,25 @@ export async function POST(request: Request) {
     db.securityTokens.push(newToken);
     await saveDatabase(db);
 
-    // 2. Call GAS to send email and write this exact code to Google Sheets
+    // Send the OTP through GAS; never return it through this API.
     const gasUrl = getGasUrl();
     if (gasUrl) {
       try {
-        const gasRes: any = await fetchGasData('sendForgotPasswordOTP', { 
+        const gasRes: any = await fetchGasData('sendForgotPasswordOTP', {
           email: cleanEmail,
-          code: code
+          code,
         });
         if (gasRes && gasRes.success) {
-          return NextResponse.json({ 
-            success: true, 
-            message: 'Verification OTP code sent to your email.',
-            code // Keep code in response so local offline testing works
-          });
+          return genericResponse();
         }
-      } catch (err: any) {
-        console.warn("GAS email OTP send failed, using local offline fallback code:", err);
+      } catch (err) {
+        console.warn('GAS email OTP send failed.');
       }
     }
 
-    return NextResponse.json({
-      success: true,
-      message: `Verification OTP Code generated: ${code}`,
-      code,
-    });
+    newToken.status = 'EXPIRED';
+    await saveDatabase(db);
+    return genericResponse();
   } catch (error) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

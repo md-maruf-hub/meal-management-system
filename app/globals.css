@@ -4,12 +4,76 @@
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 antialiased font-sans;
+    @apply bg-slate-50 text-slate-900 antialiased;
+    font-family: var(--font-bengali), 'Segoe UI', system-ui, -apple-system, sans-serif;
   }
 }
 
+/* ---- Design System Utilities ---- */
+
+/* Consistent card styling */
+.card {
+  @apply bg-white rounded-2xl border border-slate-200/80 shadow-sm;
+}
+
+.card-hover {
+  @apply card hover:shadow-md hover:border-slate-300/80 transition-all duration-200;
+}
+
+/* Button press effect */
+.btn-press {
+  @apply active:scale-[0.97] transition-transform duration-100;
+}
+
+/* Scrollable tab bar for mobile */
+.tab-scroll {
+  @apply flex overflow-x-auto gap-2 pb-1 -mx-1 px-1;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.tab-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Stat number styling */
+.stat-value {
+  @apply text-2xl font-bold tracking-tight;
+}
+
+/* Badge pill */
+.badge {
+  @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold;
+}
+
+/* Smooth page transitions */
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-enter {
+  animation: pageEnter 0.25s ease-out forwards;
+}
+
+/* Table matrix inputs */
 .table-matrix input {
   @apply text-center transition-colors focus:ring-2 focus:ring-emerald-500 focus:bg-emerald-50 focus:outline-none rounded;
+}
+
+/* Empty state container */
+.empty-state {
+  @apply flex flex-col items-center justify-center py-12 text-center text-slate-400;
+}
+
+/* Gradient text utility */
+.text-gradient {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-teal-600;
 }
 
 @media print {
