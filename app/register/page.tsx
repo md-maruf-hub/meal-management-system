@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { User, Phone, Home, Mail, Lock, PhoneCall, CheckCircle } from 'lucide-react';
+import { User, Phone, Home, Mail, Lock, PhoneCall, CheckCircle, ArrowRight } from 'lucide-react';
 import Logo from '../../components/ui/Logo';
 
 export default function RegisterPage() {
@@ -42,43 +42,43 @@ export default function RegisterPage() {
         return;
       }
 
-      setMessage(data.message || 'নিবন্ধন আবেদন সফলভাবে জমা হয়েছে এবং গুগল শিটে সংরক্ষিত হয়েছে! সুপার অ্যাডমিনের অনুমোদনের অপেক্ষা করুন।');
+      setMessage(data.message || 'নিবন্ধন আবেদন সফলভাবে জমা হয়েছে এবং গুগল শিটে সংরক্ষিত হয়েছে! সুপার অ্যাডমিনের অনুমোদনের অপেক্ষা করুন।');
       setLoading(false);
       setTimeout(() => {
         router.push('/login');
       }, 3000);
     } catch (err) {
-      setError('একটি সমস্যা দেখা দিয়েছে। দয়া করে আবার চেষ্টা করুন।');
+      setError('একটি সমস্যা দেখা দিয়েছে। দয়া করে আবার চেষ্টা করুন।');
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-      <div className="max-w-lg w-full bg-slate-800 border border-slate-700 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
-        <div className="text-center space-y-3">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-950 flex items-center justify-center p-4 py-8">
+      <div className="max-w-lg w-full bg-white/[0.07] backdrop-blur-xl border border-white/10 rounded-3xl p-6 sm:p-9 shadow-2xl space-y-6">
+        <div className="text-center space-y-2">
           <div className="flex justify-center">
             <Logo size="lg" showText={false} />
           </div>
           <h2 className="text-2xl font-bold text-white tracking-tight">নতুন সদস্য নিবন্ধন</h2>
-          <p className="text-sm text-slate-400">মেস মেম্বারশিপের জন্য নিচের তথ্যগুলো পূরণ করুন</p>
+          <p className="text-xs text-slate-400">মেস মেম্বারশিপের জন্য নিচের তথ্যগুলো পূরণ করুন</p>
         </div>
 
         {message && (
-          <div className="p-3 bg-emerald-950/80 border border-emerald-800 text-emerald-300 text-xs font-semibold rounded-lg text-center flex items-center justify-center space-x-2">
-            <CheckCircle className="w-4 h-4" />
+          <div className="p-3.5 bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 text-xs font-semibold rounded-xl text-center flex items-center justify-center space-x-2">
+            <CheckCircle className="w-4 h-4 flex-shrink-0" />
             <span>{message}</span>
           </div>
         )}
 
         {error && (
-          <div className="p-3 bg-red-950/80 border border-red-800 text-red-300 text-xs font-semibold rounded-lg text-center">
+          <div className="p-3.5 bg-red-500/15 border border-red-500/25 text-red-300 text-xs font-semibold rounded-xl text-center">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1">পূর্ণ নাম *</label>
               <div className="relative">
@@ -88,9 +88,9 @@ export default function RegisterPage() {
                   placeholder="যেমন: নূর-আলম"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="w-full pl-9 pr-3 py-2.5 bg-white/[0.06] border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30 transition-colors"
                 />
-                <User className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                <User className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
               </div>
             </div>
 
@@ -103,14 +103,14 @@ export default function RegisterPage() {
                   placeholder="01700000000"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="w-full pl-9 pr-3 py-2.5 bg-white/[0.06] border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30 transition-colors"
                 />
-                <Phone className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                <Phone className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1">রুম নম্বর *</label>
               <div className="relative">
@@ -120,9 +120,9 @@ export default function RegisterPage() {
                   placeholder="১০১"
                   value={formData.roomNo}
                   onChange={(e) => setFormData({ ...formData, roomNo: e.target.value })}
-                  className="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="w-full pl-9 pr-3 py-2.5 bg-white/[0.06] border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30 transition-colors"
                 />
-                <Home className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                <Home className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
               </div>
             </div>
 
@@ -134,14 +134,14 @@ export default function RegisterPage() {
                   placeholder="member@gmail.com"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="w-full pl-9 pr-3 py-2.5 bg-white/[0.06] border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30 transition-colors"
                 />
-                <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1">জরুরি যোগাযোগ নম্বর</label>
               <div className="relative">
@@ -150,14 +150,14 @@ export default function RegisterPage() {
                   placeholder="01900000000"
                   value={formData.emergencyContact}
                   onChange={(e) => setFormData({ ...formData, emergencyContact: e.target.value })}
-                  className="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="w-full pl-9 pr-3 py-2.5 bg-white/[0.06] border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30 transition-colors"
                 />
-                <PhoneCall className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                <PhoneCall className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">পাসওয়ার্ড *</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1">পাসওয়ার্ড *</label>
               <div className="relative">
                 <input
                   type="password"
@@ -165,43 +165,46 @@ export default function RegisterPage() {
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="w-full pl-9 pr-3 py-2.5 bg-white/[0.06] border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30 transition-colors"
                 />
-                <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
               </div>
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">স্থায়ী ঠিকানা / বিবরণ</label>
+            <label className="block text-xs font-medium text-slate-300 mb-1">স্থায়ী ঠিকানা / বিবরণ</label>
             <textarea
               rows={2}
               placeholder="ঢাকা, বাংলাদেশ"
               value={formData.address}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+              className="w-full p-3 bg-white/[0.06] border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/30 transition-colors resize-none"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg shadow-lg transition-colors flex items-center justify-center space-x-2 disabled:opacity-75"
+            className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl shadow-lg shadow-emerald-600/20 transition-all btn-press flex items-center justify-center space-x-2 disabled:opacity-70"
           >
             {loading ? (
               <>
                 <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>গুগল শিটে ডাটা সংরক্ষণ হচ্ছে...</span>
+                <span>আবেদন জমা হচ্ছে...</span>
               </>
             ) : (
-              'নিবন্ধনের আবেদন জমা দিন'
+              <>
+                <span>নিবন্ধনের আবেদন জমা দিন</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
             )}
           </button>
         </form>
 
-        <div className="text-center pt-2">
-          <Link href="/login" className="text-xs text-slate-400 hover:text-white">
-            ইতিমধ্যে অ্যাকাউন্ট আছে? <span className="text-emerald-400 underline">লগইন করুন</span>
+        <div className="text-center pt-3 border-t border-white/10">
+          <Link href="/login" className="text-xs text-slate-400 hover:text-white transition-colors">
+            ইতিমধ্যে অ্যাকাউন্ট আছে? <span className="text-emerald-400 font-semibold hover:underline">লগইন করুন</span>
           </Link>
         </div>
       </div>

@@ -5,6 +5,7 @@ import { BazarEntry } from '../../../../lib/types';
 import { useDashboard } from '../../../../lib/DashboardContext';
 import { ShoppingBag, Plus, Pencil, Trash2, X, Check } from 'lucide-react';
 import DataLoader from '../../../../components/ui/DataLoader';
+import { toast } from 'sonner';
 
 export default function BazarPage() {
   const { user, selectedMonth } = useDashboard();
@@ -15,7 +16,6 @@ export default function BazarPage() {
   const [shopperName, setShopperName] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState('');
 
   // Editing state
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -44,7 +44,6 @@ export default function BazarPage() {
     e.preventDefault();
     if (!amount) return;
     setSubmitting(true);
-    setMessage('');
 
     try {
       const res = await fetch('/api/expenses', {
@@ -59,14 +58,17 @@ export default function BazarPage() {
       });
 
       if (res.ok) {
-        setMessage('বাজার খরচ সফলভাবে যুক্ত হয়েছে!');
+        toast.success('বাজার খরচ সফলভাবে যুক্ত হয়েছে!');
         setAmount('');
         setDescription('');
         setShopperName('');
         fetchBazar();
+      } else {
+        toast.error('বাজার খরচ যুক্ত করতে সমস্যা হয়েছে।');
       }
       setSubmitting(false);
     } catch (err) {
+      toast.error('নেটওয়ার্ক সমস্যা। আবার চেষ্টা করুন।');
       setSubmitting(false);
     }
   };
@@ -101,11 +103,15 @@ export default function BazarPage() {
       });
 
       if (res.ok) {
-        setMessage('বাজার খরচ সফলভাবে আপডেট করা হয়েছে!');
+        toast.success('বাজার খরচ সফলভাবে আপডেট করা হয়েছে!');
         setEditingId(null);
         fetchBazar();
+      } else {
+        toast.error('আপডেট ব্যর্থ হয়েছে।');
       }
-    } catch (err) {}
+    } catch (err) {
+      toast.error('নেটওয়ার্ক ত্রুটি।');
+    }
   };
 
   const handleDeleteBazar = async (id: string, desc: string) => {
@@ -117,44 +123,46 @@ export default function BazarPage() {
       });
 
       if (res.ok) {
-        setMessage('বাজার খরচ সফলভাবে মুছে ফেলা হয়েছে!');
+        toast.success('বাজার খরচ সফলভাবে মুছে ফেলা হয়েছে!');
         fetchBazar();
+      } else {
+        toast.error('মুছতে ব্যর্থ হয়েছে।');
       }
-    } catch (err) {}
+    } catch (err) {
+      toast.error('নেটওয়ার্ক ত্রুটি।');
+    }
   };
 
   const totalBazar = bazarEntries.reduce((sum, b) => sum + (b.amount || 0), 0);
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div className="space-y-5 page-enter">
+      {/* Header Banner */}
+      <div className="card p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center space-x-3">
-          <ShoppingBag className="w-6 h-6 text-emerald-600 flex-shrink-0" />
+          <div className="p-2.5 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200">
+            <ShoppingBag className="w-6 h-6 flex-shrink-0" />
+          </div>
           <div>
             <h2 className="text-xl font-bold text-slate-800">বাজার খরচ এন্ট্রি ও হিসাব</h2>
-            <p className="text-xs text-slate-500">{selectedMonth} মাসের মেসের দৈনিক বাজার খরচের হিসাব রাখুন ও পরিচালনা করুন</p>
+            <p className="text-xs text-slate-500">{selectedMonth} মাসের মেসের দৈনিক বাজার খরচের হিসাব রাখুন</p>
           </div>
         </div>
-        <div className="text-right">
-          <span className="text-xs text-slate-500 block">মোট বাজার খরচ (চলতি মাস)</span>
-          <span className="text-2xl font-extrabold text-emerald-600">৳ {totalBazar.toFixed(2)}</span>
+        <div className="text-left sm:text-right bg-slate-50 p-2.5 px-4 rounded-xl border border-slate-200">
+          <span className="text-xs text-slate-500 block">মোট বাজার খরচ ({selectedMonth})</span>
+          <span className="text-xl sm:text-2xl font-bold text-emerald-600 font-mono">৳ {totalBazar.toFixed(2)}</span>
         </div>
       </div>
 
-      {message && (
-        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold rounded-xl">
-          {message}
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Entry Form */}
+        <div className="card p-4 sm:p-6 space-y-4">
           <h3 className="font-bold text-slate-800 text-base flex items-center space-x-2">
             <Plus className="w-4 h-4 text-emerald-600" />
             <span>নতুন বাজার খরচ যুক্ত করুন</span>
           </h3>
 
-          <form onSubmit={handleAddBazar} className="space-y-4">
+          <form onSubmit={handleAddBazar} className="space-y-3.5">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">তারিখ *</label>
               <input
@@ -162,7 +170,7 @@ export default function BazarPage() {
                 required
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm"
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
               />
             </div>
 
@@ -175,18 +183,18 @@ export default function BazarPage() {
                 placeholder="যেমন: ২৫০০"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold"
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-500"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">বাজারকারীর নাম (কে বাজার করেছে?)</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">বাজারকারীর নাম</label>
               <input
                 type="text"
-                placeholder="যেমন: তানভীর / মেহেদী / রফিক"
+                placeholder="যেমন: তানভীর / মেহেদী"
                 value={shopperName}
                 onChange={(e) => setShopperName(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm"
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
               />
             </div>
 
@@ -197,72 +205,80 @@ export default function BazarPage() {
                 placeholder="যেমন: মাছ, মুরগি, সবজি, চাল"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm"
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
               />
             </div>
 
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl shadow transition-colors"
+              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl shadow-sm transition-all btn-press disabled:opacity-60"
             >
               {submitting ? 'সংরক্ষণ হচ্ছে...' : 'বাজার খরচ যুক্ত করুন'}
             </button>
           </form>
         </div>
 
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-5 border-b border-slate-200 font-bold text-slate-800 text-base">
-            বাজার খরচের তালিকা ({selectedMonth})
+        {/* Entries List */}
+        <div className="lg:col-span-2 card overflow-hidden">
+          <div className="p-4 sm:p-5 border-b border-slate-200 font-bold text-slate-800 text-base flex items-center justify-between">
+            <span>বাজার খরচের তালিকা ({selectedMonth})</span>
+            <span className="badge bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono">
+              {bazarEntries.length} টি রেকর্ড
+            </span>
           </div>
+
           <div className="divide-y divide-slate-100 text-sm">
             {loading ? (
               <DataLoader text="বাজার খরচের তালিকা লোড হচ্ছে..." variant="table" />
             ) : bazarEntries.length === 0 ? (
-              <div className="p-8 text-center text-slate-500">এই মাসে কোনো বাজার খরচের রেকর্ড পাওয়া যায়নি।</div>
+              <div className="empty-state py-12">
+                <ShoppingBag className="w-10 h-10 text-slate-300 mb-2" />
+                <p className="text-sm">এই মাসে কোনো বাজার খরচের রেকর্ড পাওয়া যায়নি।</p>
+              </div>
             ) : (
               bazarEntries.map((b) => (
-                <div key={b.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50">
+                <div key={b.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 transition-colors">
                   {editingId === b.id ? (
                     <div className="flex-1 grid grid-cols-1 sm:grid-cols-4 gap-2">
                       <input
                         type="date"
                         value={editDate}
                         onChange={(e) => setEditDate(e.target.value)}
-                        className="p-1.5 border border-slate-300 rounded text-xs"
+                        className="p-1.5 border border-slate-300 rounded-lg text-xs"
                       />
                       <input
                         type="text"
                         placeholder="বাজারকারীর নাম"
                         value={editShopperName}
                         onChange={(e) => setEditShopperName(e.target.value)}
-                        className="p-1.5 border border-slate-300 rounded text-xs"
+                        className="p-1.5 border border-slate-300 rounded-lg text-xs"
                       />
                       <input
                         type="text"
                         placeholder="বিবরণ"
                         value={editDescription}
                         onChange={(e) => setEditDescription(e.target.value)}
-                        className="p-1.5 border border-slate-300 rounded text-xs"
+                        className="p-1.5 border border-slate-300 rounded-lg text-xs"
                       />
                       <div className="flex items-center space-x-2">
                         <input
                           type="number"
                           value={editAmount}
                           onChange={(e) => setEditAmount(e.target.value)}
-                          className="w-20 p-1.5 border border-slate-300 rounded text-xs font-bold"
+                          className="w-20 p-1.5 border border-slate-300 rounded-lg text-xs font-bold"
                         />
                         <button
                           onClick={() => handleUpdateBazar(b.id)}
-                          className="p-1.5 bg-emerald-600 text-white rounded hover:bg-emerald-500"
-                          title="Save Update"
+                          className="p-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 btn-press"
+                          title="সংরক্ষণ"
                         >
                           <Check className="w-4 h-4" />
                         </button>
                         <button
                           onClick={cancelEdit}
-                          className="p-1.5 bg-slate-200 text-slate-600 rounded hover:bg-slate-300"
-                          title="Cancel"
+                          className="p-1.5 bg-slate-200 text-slate-600 rounded-lg hover:bg-slate-300 btn-press"
+                          title="বাতিল"
                         >
                           <X className="w-4 h-4" />
                         </button>
@@ -274,28 +290,27 @@ export default function BazarPage() {
                         <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                           <span className="font-bold text-slate-800 text-sm">{b.description || 'বাজার খরচ'}</span>
                           {b.shopperName && (
-                            <span className="text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 rounded-full inline-flex items-center space-x-1">
-                              <span>🛒 বাজারকারী:</span>
-                              <span className="font-extrabold">{b.shopperName}</span>
+                            <span className="badge bg-emerald-50 text-emerald-800 border border-emerald-200">
+                              🛒 {b.shopperName}
                             </span>
                           )}
                         </div>
-                        <span className="text-xs text-slate-500 block">{b.date}</span>
+                        <span className="text-xs text-slate-400 block">{b.date}</span>
                       </div>
-                      <div className="flex items-center space-x-4">
-                        <span className="font-bold text-slate-900 text-base">৳ {b.amount.toFixed(2)}</span>
+                      <div className="flex items-center justify-between sm:justify-end space-x-4">
+                        <span className="font-bold text-slate-900 font-mono text-base">৳ {b.amount.toFixed(2)}</span>
                         <div className="flex items-center space-x-1">
                           <button
                             onClick={() => startEdit(b)}
-                            className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Edit Record"
+                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors btn-press"
+                            title="সম্পাদনা"
                           >
                             <Pencil className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDeleteBazar(b.id, b.description)}
-                            className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Delete Record"
+                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors btn-press"
+                            title="মুছে ফেলুন"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>

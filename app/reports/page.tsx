@@ -139,24 +139,24 @@ export default function MainReportPage() {
                   মাসিক মূল হিসাব ও সমন্বয় বিবরণী — {selectedMonth}
                 </p>
                 {source === 'GOOGLE_SHEET' ? (
-                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                  <span className="badge bg-blue-100 text-blue-800 border border-blue-200">
                     ☁️ গুগল শিট (সংরক্ষিত অতীত মাস)
                   </span>
                 ) : (
-                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  <span className="badge bg-emerald-100 text-emerald-800 border border-emerald-200">
                     ⚡ ভার্চুয়াল ডাটাবেজ (সক্রিয় মাস)
                   </span>
                 )}
               </div>
               {report?.assignedManagers && report.assignedManagers.length > 0 ? (
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  <span className="text-[11px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                  <span className="badge bg-slate-100 text-slate-700 border border-slate-200">
                     👑 চলতি দায়িত্বে ({report.assignedManagers.length}/৩ জন):
                   </span>
                   {report.assignedManagers.map((mgr) => (
                     <span
                       key={mgr.id}
-                      className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-300"
+                      className="badge bg-emerald-50 text-emerald-800 border border-emerald-300"
                     >
                       {mgr.name} {mgr.roomNo ? `(রুম ${mgr.roomNo})` : ''}
                     </span>
@@ -197,7 +197,7 @@ export default function MainReportPage() {
             <div className="overflow-x-auto rounded-xl border border-slate-200">
               <table className="w-full text-xs text-left border-collapse min-w-[900px]">
                 <thead>
-                  <tr className="bg-slate-800 text-white uppercase text-[10px] tracking-wider">
+                  <tr className="bg-slate-800 text-white uppercase text-xs tracking-wider">
                     <th className="p-3 text-center border-r border-slate-700">রুম</th>
                     <th className="p-3 border-r border-slate-700">সদস্যের নাম</th>
                     <th className="p-3 text-center border-r border-slate-700">মিল</th>
@@ -225,7 +225,7 @@ export default function MainReportPage() {
                           <div className="flex items-center justify-between gap-2">
                             <span>{m.memberName}</span>
                             {m.isSettled && (
-                              <span className="text-[9px] bg-blue-100 text-blue-800 font-extrabold px-1.5 py-0.5 rounded border border-blue-200 uppercase tracking-wider flex-shrink-0">
+                              <span className="badge bg-blue-100 text-blue-800 border border-blue-200 flex-shrink-0">
                                 সমন্বিত
                               </span>
                             )}
